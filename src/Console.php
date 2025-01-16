@@ -174,7 +174,7 @@ class Console extends Command
         $session->onErrorMessage = static function (string $data) {
             Output::warning($data);
         };
-        $session->write(file_get_contents(__DIR__ . '/Guide.php'));
+        $session->write(file_get_contents(__DIR__ . '/HttpWorker.php'));
         $session->inputEot();
         $session->onClose = static fn () => exit(0);
         wait();

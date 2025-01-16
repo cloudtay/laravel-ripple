@@ -88,6 +88,15 @@ function app(string $abstract = null, array $parameters = []): mixed
     return ContextManager::app($abstract, $parameters);
 }
 
+/**
+ * @return \Ripple\Driver\Laravel\HttpWorker
+ * @throws \Illuminate\Contracts\Container\BindingResolutionException
+ */
+function rippleHttpWorker(): HttpWorker
+{
+    return app('rippleHttpWorker');
+}
+
 define("RIP_PROJECT_PATH", realpath($projectPath));
 require RIP_PROJECT_PATH . '/vendor/autoload.php';
 
@@ -95,7 +104,7 @@ require RIP_PROJECT_PATH . '/vendor/autoload.php';
  * @Author cclilshy
  * @Date   2024/8/16 23:38
  */
-class Guide extends Worker
+class HttpWorker extends Worker
 {
     use Console;
     use DispatchesEvents;
@@ -168,7 +177,7 @@ class Guide extends Worker
                 $monitor->add(RIP_PROJECT_PATH . ('/.env'));
             }
 
-            Guide::relevance($manager, $this, $monitor);
+            HttpWorker::relevance($manager, $this, $monitor);
         }
     }
 
@@ -211,7 +220,10 @@ class Guide extends Worker
     public function boot(): void
     {
         cli_set_process_title('laravel-worker');
-        $this->application = Guide::createWebApplication();
+        $this->application = HttpWorker::createWebApplication();
+        $this->application->bind('rippleHttpWorker', fn () => $this);
+        $this->application->bind('httpWorker', fn () => $this);
+        $this->application->bind(HttpWorker::class, fn () => $this);
 
         try {
             $this->application->make(Kernel::class)->bootstrap();
@@ -221,7 +233,7 @@ class Guide extends Worker
         }
 
         $this->application->loadDeferredProviders();
-        foreach (Guide::initializeServices() as $service) {
+        foreach (HttpWorker::initializeServices() as $service) {
             try {
                 $this->application->bound($service)
                 &&
@@ -282,7 +294,7 @@ class Guide extends Worker
                 $request->respond($e->getMessage(), [], $e->getCode());
                 $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
             } finally {
-                foreach (Guide::defaultServicesToWarm() as $service) {
+                foreach (HttpWorker::defaultServicesToWarm() as $service) {
                     try {
                         $application->forgetInstance($service);
                     } catch (Throwable $e) {
@@ -374,7 +386,7 @@ class Guide extends Worker
 $lock = lock(RIP_PROJECT_PATH);
 $lock->exclusion(false) || _rip_error_terminate("the server is already running\n");
 
-$application = Guide::createApplication();
+$application = HttpWorker::createApplication();
 try {
     $kernel = $application->make(\Illuminate\Foundation\Console\Kernel::class);
     $kernel->bootstrap();
@@ -389,7 +401,7 @@ try {
     _rip_error_terminate("manager resolution failed: {$e->getMessage()}\n");
 }
 
-$worker = new Guide(
+$worker = new HttpWorker(
     Config::value2string($env['RIP_HTTP_LISTEN'] ?? 'http://127.0.0.1:8008', 'string'),
     intval(Config::value2string($env['RIP_HTTP_WORKERS'] ?? 4, 'string')),
     Config::value2bool($env['RIP_HTTP_RELOAD'] ?? false),
