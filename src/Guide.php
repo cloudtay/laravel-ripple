@@ -158,7 +158,7 @@ class Guide extends Worker
         /*** initialize*/
         $this->server = new Server($this->address, ['socket' => ['so_reuseport' => 1, 'so_reuseaddr' => 1]]);
         if ($this->reload) {
-            $monitor = File::monitor();
+            $monitor = File::getInstance()->monitor();
             $monitor->add(RIP_PROJECT_PATH . ('/app'));
             $monitor->add(RIP_PROJECT_PATH . ('/bootstrap'));
             $monitor->add(RIP_PROJECT_PATH . ('/config'));
