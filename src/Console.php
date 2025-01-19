@@ -13,34 +13,31 @@
 namespace Ripple\Driver\Laravel;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Config;
 use Revolt\EventLoop\UnsupportedFeatureException;
+use Ripple\Channel\Channel;
+use Ripple\Driver\Laravel\Virtual\Virtual;
+use Ripple\File\File;
+use Ripple\File\Lock;
 use Ripple\Utils\Output;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Throwable;
 
 use function base_path;
+use function Co\async;
 use function Co\channel;
-use function Co\lock;
 use function Co\onSignal;
-use function Co\proc;
 use function Co\wait;
 use function config_path;
 use function file_exists;
-use function file_get_contents;
-use function fwrite;
-use function putenv;
 use function shell_exec;
 use function sprintf;
 use function storage_path;
-use function str_replace;
 
 use const PHP_BINARY;
-use const PHP_OS_FAMILY;
 use const SIGINT;
 use const SIGQUIT;
 use const SIGTERM;
-use const STDOUT;
 
 /**
  * @Author cclilshy
@@ -79,7 +76,6 @@ class Console extends Command
      * 运行服务
      *
      * @return void
-     * @throws \Revolt\EventLoop\UnsupportedFeatureException
      */
     public function handle(): void
     {
@@ -89,56 +85,35 @@ class Console extends Command
             return;
         }
 
-        $projectPath = base_path();
-        $lock        = lock($projectPath);
-
+        $this->lock = \Co\lock(base_path());
         switch ($this->argument('action')) {
             case 'start':
-                if (!$lock->exclusion(false)) {
+                if (!$this->lock->exclusion(false)) {
                     Output::warning('the server is already running');
                     return;
                 }
-                $lock->unlock();
+                $this->start();
+                break;
 
-                if (!$this->option('daemon')) {
-                    $this->start();
-                    wait();
-                } else {
-                    $command = sprintf(
-                        '%s %s ripple:server start > %s &',
-                        PHP_BINARY,
-                        base_path('artisan'),
-                        storage_path('logs/ripple.log')
-                    );
-                    shell_exec($command);
-                    Output::writeln('server started');
-                }
-                exit(0);
             case 'stop':
-                if ($lock->exclusion(false)) {
+                if ($this->lock->exclusion(false)) {
                     Output::warning('the server is not running');
                     return;
                 }
-                $channel = channel($projectPath);
-                $channel->send('stop');
+                $this->stop();
                 break;
 
             case 'reload':
-                if ($lock->exclusion(false)) {
+                if ($this->lock->exclusion(false)) {
                     Output::warning('the server is not running');
                     return;
                 }
-                $channel = channel($projectPath);
-                $channel->send('reload');
-                Output::info('the server is reloading');
+
+                $this->reload();
                 break;
 
             case 'status':
-                if ($lock->exclusion(false)) {
-                    Output::writeln('the server is not running');
-                } else {
-                    Output::info('the server is running');
-                }
+                $this->status();
                 break;
 
             default:
@@ -147,36 +122,140 @@ class Console extends Command
         }
     }
 
+    /*** @var \Ripple\Driver\Laravel\Virtual\Virtual */
+    protected Virtual $virtual;
+
+    /*** @var \Ripple\Channel\Channel */
+    protected Channel $channel;
+
+    /*** @var \Ripple\File\Lock */
+    protected Lock $lock;
+
     /**
      * @return void
-     * @throws UnsupportedFeatureException
      */
-    private function start(): void
+    protected function start(): void
     {
-        /*** @compatible:Windows */
-        if (PHP_OS_FAMILY !== 'Windows') {
-            onSignal(SIGINT, static fn () => exit(0));
-            onSignal(SIGTERM, static fn () => exit(0));
-            onSignal(SIGQUIT, static fn () => exit(0));
+
+        if ($this->option('daemon')) {
+            $this->lock->unlock();
+            $command = sprintf(
+                '%s %s ripple:server start > %s &',
+                PHP_BINARY,
+                base_path('artisan'),
+                storage_path('logs/ripple.log')
+            );
+            shell_exec($command);
+            Output::writeln('server started');
+            return;
         }
 
-        foreach (['RIP_HTTP_LISTEN', 'RIP_HTTP_WORKERS', 'RIP_HTTP_RELOAD',] as $key) {
-            $configKey   = str_replace('RIP_', 'ripple.', $key);
-            $configValue = Config::get($configKey);
-            putenv("{$key}={$configValue}");
-        }
-        putenv('RIP_PROJECT_PATH=' . base_path());
+        $this->virtual = new Virtual();
+        $this->virtual->launch();
+        $this->channel = channel(base_path(), true);
+        async(function () {
+            while (1) {
+                $command = $this->channel->receive();
+                switch ($command) {
+                    case 'stop':
+                        $this->virtual->channel->send('stop');
+                        try {
+                            \Co\sleep(0.1);
+                            if ($this->virtual->session->getStatus('running')) {
+                                \Co\sleep(1);
+                                $this->virtual->session->inputSignal(SIGINT);
+                            }
+                        } catch (Throwable) {
+                        }
+                        exit(0);
+                        break;
 
-        $session                 = proc(PHP_BINARY);
-        $session->onMessage      = static function (string $data) {
-            fwrite(STDOUT, $data);
-        };
-        $session->onErrorMessage = static function (string $data) {
-            Output::warning($data);
-        };
-        $session->write(file_get_contents(__DIR__ . '/HttpWorker.php'));
-        $session->inputEot();
-        $session->onClose = static fn () => exit(0);
+                    case 'reload':
+                        $oldVirtual = $this->virtual;
+                        $virtual    = new Virtual();
+                        $virtual->launch();
+                        $this->virtual = $virtual;
+
+                        $oldVirtual->channel->send('stop');
+                        try {
+                            \Co\sleep(0.1);
+                            if ($oldVirtual->session->getStatus('running')) {
+                                \Co\sleep(1);
+                                $oldVirtual->session->inputSignal(SIGINT);
+                            }
+                        } catch (Throwable) {
+                        }
+
+                        break;
+                }
+            }
+        });
+
+        $monitor = File::getInstance()->monitor();
+        $monitor->add(base_path('/app'));
+        $monitor->add(base_path('/bootstrap'));
+        $monitor->add(base_path('/config'));
+        $monitor->add(base_path('/routes'));
+        $monitor->add(base_path('/resources'));
+        if (file_exists(base_path('/.env'))) {
+            $monitor->add(base_path('/.env'));
+        }
+
+        $monitor->onModify = fn () => $this->reload();
+        $monitor->onTouch  = fn () => $this->reload();
+        $monitor->onRemove = fn () => $this->reload();
+        $monitor->run();
+
+        try {
+            onSignal(SIGINT, function () {
+                $this->stop();
+            });
+
+            onSignal(SIGTERM, function () {
+                $this->stop();
+            });
+
+            onSignal(SIGQUIT, function () {
+                $this->stop();
+            });
+        } catch (UnsupportedFeatureException $e) {
+            Output::warning('Failed to register signal handler');
+        }
+
         wait();
+    }
+
+    /**
+     * @return void
+     */
+    protected function stop(): void
+    {
+
+
+        $channel = channel(base_path());
+        $channel->send('stop');
+        exit(0);
+    }
+
+    /**
+     * @return void
+     */
+    protected function reload(): void
+    {
+        $channel = channel(base_path());
+        $channel->send('reload');
+        Output::info('the server is reloading');
+    }
+
+    /**
+     * @return void
+     */
+    protected function status(): void
+    {
+        if ($this->lock->exclusion(false)) {
+            Output::writeln('the server is not running');
+        } else {
+            Output::info('the server is running');
+        }
     }
 }

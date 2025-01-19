@@ -13,7 +13,6 @@
 namespace Ripple\Driver\Laravel;
 
 use Illuminate\Support\ServiceProvider;
-use Ripple\Worker\Manager;
 
 use function config_path;
 
@@ -27,9 +26,6 @@ class Provider extends ServiceProvider
     public function register(): void
     {
         $this->commands([Console::class]);
-        $this->app->singleton(Manager::class, static function () {
-            return new Manager();
-        });
     }
 
     /**
