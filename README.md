@@ -3,9 +3,9 @@
 </p>
 <p align="center">
 <a href="#"><img src="https://img.shields.io/badge/PHP-%3E%3D%208.3-blue" alt="Build Status"></a>
-<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/dt/cloudtay/ripple " alt="Download statistics"></a>
-<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/v/cloudtay/ripple " alt="Stable version"></a>
-<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/l/cloudtay/ripple " alt="License"></a>
+<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/dt/cloudtay/ripple" alt="Download statistics"></a>
+<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/v/cloudtay/ripple" alt="Stable version"></a>
+<a href="https://packagist.org/packages/cloudtay/ripple"><img src="https://img.shields.io/packagist/l/cloudtay/ripple" alt="License"></a>
 </p>
 <p>
 ripple is a modern, high-performance native PHP coroutine framework designed to solve PHP's challenges in high concurrency, complex network communication and data operations.

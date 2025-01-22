@@ -13,6 +13,8 @@
 namespace Ripple\Driver\Laravel;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
+use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Channel\Channel;
 use Ripple\Driver\Laravel\Virtual\Virtual;
@@ -191,6 +193,7 @@ class Console extends Command
             }
         });
 
+
         $monitor = File::getInstance()->monitor();
         $monitor->add(base_path('/app'));
         $monitor->add(base_path('/bootstrap'));
@@ -204,7 +207,10 @@ class Console extends Command
         $monitor->onModify = fn () => $this->reload();
         $monitor->onTouch  = fn () => $this->reload();
         $monitor->onRemove = fn () => $this->reload();
-        $monitor->run();
+
+        if (Config::get('ripple.HTTP_RELOAD', 1)) {
+            $monitor->run();
+        }
 
         try {
             onSignal(SIGINT, function () {
@@ -228,10 +234,8 @@ class Console extends Command
     /**
      * @return void
      */
-    protected function stop(): void
+    #[NoReturn] protected function stop(): void
     {
-
-
         $channel = channel(base_path());
         $channel->send('stop');
         exit(0);
