@@ -20,7 +20,8 @@
     "ext-sockets": "*",
     "ext-pdo": "*",
     "cloudtay/ripple": "^1.0",
-    "cloudtay/ripple-http": "^1.0"
+    "cloudtay/ripple-http": "^1.0",
+    "laravel/framework": "^11.0"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "*",
@@ -28,7 +29,6 @@
     "illuminate/console": "*",
     "illuminate/container": "*",
     "illuminate/support": "*",
-    "laravel/framework": "*",
     "phpunit/phpunit": "*"
   },
   "suggest": {

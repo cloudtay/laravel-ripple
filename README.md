@@ -19,6 +19,13 @@ By using ripple, you will experience the advantages of managing tasks from a glo
     <a href="https://github.com/cloudtay/ripple/issues">Submit a bug »</a>
 </p>
 
+### Compatible version
+
+| Software | Version            |
+|----------|--------------------|
+| PHP      | `^8.1` - `latest`  |
+| Laravel  | `^11.0` - `latest` |
+
 ### Start learning
 
 You can visit ripple’s [Documentation](https://ripple.cloudtay.com/) to start reading
