@@ -92,7 +92,7 @@ class HttpWorker extends Worker
      */
     public function boot(): void
     {
-        cli_set_process_title('laravel-worker');
+        cli_set_process_title('laravel-worker.http');
         $this->application->singleton('rippleHttpWorker', fn () => $this);
         $this->application->singleton('httpWorker', fn () => $this);
         $this->application->singleton(HttpWorker::class, fn () => $this);
@@ -175,7 +175,7 @@ class HttpWorker extends Worker
 
             $kernel->terminate($laravelRequest, $laravelResponse);
             $this->dispatchEvent($application, new RequestTerminated($this->application, $application, $laravelRequest, $laravelResponse));
-        } catch (ConnectionException) {
+        } catch (ConnectionException $e) {
             $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
         } catch (Throwable $e) {
             $request->respond($e->getMessage(), [], $e->getCode());
