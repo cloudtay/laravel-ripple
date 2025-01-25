@@ -3,6 +3,11 @@
 namespace Ripple\Driver\Laravel;
 
 use Illuminate\Foundation\Application;
+use Ripple\File\File;
+use Ripple\File\Monitor;
+
+use function base_path;
+use function file_exists;
 
 class Factory
 {
@@ -76,5 +81,22 @@ class Factory
             'url',
             'view',
         ];
+    }
+
+    /**
+     * @return \Ripple\File\Monitor
+     */
+    public static function createMonitor(): Monitor
+    {
+        $monitor = File::getInstance()->monitor();
+        $monitor->add(base_path('/app'));
+        $monitor->add(base_path('/bootstrap'));
+        $monitor->add(base_path('/config'));
+        $monitor->add(base_path('/routes'));
+        $monitor->add(base_path('/resources'));
+        if (file_exists(base_path('/.env'))) {
+            $monitor->add(base_path('/.env'));
+        }
+        return $monitor;
     }
 }

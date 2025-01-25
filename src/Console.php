@@ -13,12 +13,10 @@
 namespace Ripple\Driver\Laravel;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Config;
 use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Channel\Channel;
 use Ripple\Driver\Laravel\Virtual\Virtual;
-use Ripple\File\File;
 use Ripple\File\Lock;
 use Ripple\Utils\Output;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,6 +24,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 use function base_path;
+use function cli_set_process_title;
 use function Co\async;
 use function Co\channel;
 use function Co\onSignal;
@@ -138,7 +137,6 @@ class Console extends Command
      */
     protected function start(): void
     {
-
         if ($this->option('daemon')) {
             $this->lock->unlock();
             $command = sprintf(
@@ -155,6 +153,7 @@ class Console extends Command
         $this->virtual = new Virtual();
         $this->virtual->launch();
         $this->channel = channel(base_path(), true);
+
         async(function () {
             while (1) {
                 $command = $this->channel->receive();
@@ -179,6 +178,7 @@ class Console extends Command
                         $this->virtual = $virtual;
 
                         $oldVirtual->channel->send('stop');
+
                         try {
                             \Co\sleep(0.1);
                             if ($oldVirtual->session->getStatus('running')) {
@@ -193,25 +193,6 @@ class Console extends Command
             }
         });
 
-
-        $monitor = File::getInstance()->monitor();
-        $monitor->add(base_path('/app'));
-        $monitor->add(base_path('/bootstrap'));
-        $monitor->add(base_path('/config'));
-        $monitor->add(base_path('/routes'));
-        $monitor->add(base_path('/resources'));
-        if (file_exists(base_path('/.env'))) {
-            $monitor->add(base_path('/.env'));
-        }
-
-        $monitor->onModify = fn () => $this->reload();
-        $monitor->onTouch  = fn () => $this->reload();
-        $monitor->onRemove = fn () => $this->reload();
-
-        if (Config::get('ripple.HTTP_RELOAD', 1)) {
-            $monitor->run();
-        }
-
         try {
             onSignal(SIGINT, function () {
                 $this->stop();
@@ -224,10 +205,11 @@ class Console extends Command
             onSignal(SIGQUIT, function () {
                 $this->stop();
             });
-        } catch (UnsupportedFeatureException $e) {
+        } catch (UnsupportedFeatureException) {
             Output::warning('Failed to register signal handler');
         }
 
+        cli_set_process_title('laravel-guard');
         wait();
     }
 

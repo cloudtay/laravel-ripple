@@ -13,6 +13,7 @@
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Console\Kernel;
+use Illuminate\Support\Facades\Config;
 use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Driver\Laravel\Coroutine\ContextManager;
@@ -26,7 +27,7 @@ use function Co\channel;
 use function Co\onSignal;
 use function Co\wait;
 
-\cli_set_process_title('laravel-guard');
+\cli_set_process_title('laravel-virtual');
 
 /**
  * @param string $message
@@ -88,7 +89,26 @@ try {
 }
 
 $manager->addWorker(new HttpWorker($application));
-$manager->run();
+
+/*** Hot reload part */
+$guardChannel      = channel(\base_path());
+$includedFiles     = \get_included_files();
+$monitor           = Factory::createMonitor();
+$hotReload         = function (string $file) use ($manager, $includedFiles, $guardChannel) {
+    if (\in_array($file, $includedFiles, true)) {
+        $guardChannel->send('reload');
+    } else {
+        $manager->reload();
+        $date = \date('Y-m-d H:i:s');
+        \is_file($file) && Output::writeln("[{$date}] {$file} has been modified");
+    }
+};
+$monitor->onModify = $hotReload;
+$monitor->onTouch  = $hotReload;
+$monitor->onRemove = $hotReload;
+if (Config::get('ripple.HTTP_RELOAD', 1)) {
+    $monitor->run();
+}
 
 /*** Guardian part*/
 async(function () use ($manager) {
@@ -121,4 +141,9 @@ async(function () use ($manager) {
     }
 });
 
+/*** start */
+\fwrite(\STDOUT, "\033c\n");
+Output::info('[laravel-ripple]', 'started');
+Output::writeln('================================');
+$manager->run();
 wait();
