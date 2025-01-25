@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel\Response;
+namespace Laravel\Ripple\Response;
 
 use Closure;
 use Iterator;

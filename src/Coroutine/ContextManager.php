@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel\Coroutine;
+namespace Laravel\Ripple\Coroutine;
 
 use Fiber;
 use Illuminate\Container\Container;

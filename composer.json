@@ -10,7 +10,7 @@
   ],
   "autoload": {
     "psr-4": {
-      "Ripple\\Driver\\Laravel\\": "src/"
+      "Laravel\\Ripple\\": "src/"
     }
   },
   "require": {
@@ -29,7 +29,8 @@
     "illuminate/console": "*",
     "illuminate/container": "*",
     "illuminate/support": "*",
-    "phpunit/phpunit": "*"
+    "phpunit/phpunit": "*",
+    "laravel/octane": "2.x-dev"
   },
   "suggest": {
     "cloudtay/ripple-websocket": "^1.0"
@@ -39,7 +40,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "Ripple\\Driver\\Laravel\\Provider"
+        "\\Laravel\\Ripple\\Provider"
       ]
     }
   }

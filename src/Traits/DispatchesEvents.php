@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel\Traits;
+namespace Laravel\Ripple\Traits;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Foundation\Application;

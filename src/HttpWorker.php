@@ -10,18 +10,18 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel;
+namespace Laravel\Ripple;
 
+use Closure;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Config;
-use Ripple\Driver\Laravel\Events\RequestHandled;
-use Ripple\Driver\Laravel\Events\RequestReceived;
-use Ripple\Driver\Laravel\Events\RequestTerminated;
-use Ripple\Driver\Laravel\Events\WorkerErrorOccurred;
-use Ripple\Driver\Laravel\Response\IteratorResponse;
-use Ripple\Driver\Laravel\Traits\DispatchesEvents;
+use Laravel\Ripple\Events\RequestHandled;
+use Laravel\Ripple\Events\RequestReceived;
+use Laravel\Ripple\Events\RequestTerminated;
+use Laravel\Ripple\Events\WorkerErrorOccurred;
+use Laravel\Ripple\Response\IteratorResponse;
+use Laravel\Ripple\Traits\DispatchesEvents;
 use Ripple\Http\Server;
 use Ripple\Http\Server\Request;
 use Ripple\Stream\Exception\ConnectionException;
@@ -31,10 +31,8 @@ use Ripple\Worker\Worker;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
-use function boolval;
 use function cli_set_process_title;
 use function fopen;
-use function intval;
 
 /**
  * @Author cclilshy
@@ -47,24 +45,22 @@ class HttpWorker extends Worker
     /*** @var Server */
     protected Server $server;
 
-    /*** @var string */
-    protected string $address;
-
-    /*** @var int */
-    protected int $count;
-
-    /*** @var bool */
-    protected bool $reload = false;
+    /*** @var \Closure */
+    protected Closure $customHandler;
 
     /**
      * @param \Illuminate\Foundation\Application $application
+     * @param string $address
+     * @param int    $count
+     * @param bool   $reload
      */
-    public function __construct(protected Application $application)
-    {
+    public function __construct(
+        protected Application $application,
+        protected string      $address,
+        protected int         $count,
+        protected bool        $reload = false,
+    ) {
         $this->name    = 'http-server';
-        $this->address = Config::get('ripple.HTTP_LISTEN', 'http://127.0.0.1:8008');
-        $this->count = intval(Config::get('ripple.HTTP_WORKERS', 1));
-        $this->reload = boolval(Config::get('ripple.HTTP_RELOAD', false));
     }
 
     /**
@@ -82,7 +78,15 @@ class HttpWorker extends Worker
         Output::info("worker listening on {$this->address} x {$this->count} registered");
 
         /*** initialize*/
-        $this->server = new Server($this->address, ['socket' => ['so_reuseport' => 1, 'so_reuseaddr' => 1]]);
+        $this->server = new Server(
+            address: $this->address,
+            context: [
+                'socket' => [
+                    'so_reuseport' => 1,
+                    'so_reuseaddr' => 1
+                ]
+            ]
+        );
     }
 
     /**
@@ -126,6 +130,10 @@ class HttpWorker extends Worker
      */
     protected function onRequest(Request $request): void
     {
+        if (isset($this->customHandler)) {
+            ($this->customHandler)($request);
+        }
+
         $application    = clone $this->application;
         $laravelRequest = new \Illuminate\Http\Request(
             $request->GET,
@@ -190,5 +198,15 @@ class HttpWorker extends Worker
             }
             unset($application);
         }
+    }
+
+    /**
+     * @param Closure $handler
+     *
+     * @return void
+     */
+    public function customHandler(Closure $handler): void
+    {
+        $this->customHandler = $handler;
     }
 }

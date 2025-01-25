@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel\Listeners;
+namespace Laravel\Ripple\Listeners;
 
 class FlushQueuedCookies
 {

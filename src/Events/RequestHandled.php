@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel\Events;
+namespace Laravel\Ripple\Events;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;

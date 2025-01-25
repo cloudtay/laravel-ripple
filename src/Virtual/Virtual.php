@@ -1,20 +1,28 @@
 <?php declare(strict_types=1);
+/**
+ * Copyright © 2024 cclilshy
+ * Email: jingnigg@gmail.com
+ *
+ * This software is licensed under the MIT License.
+ * For full license details, please visit: https://opensource.org/licenses/MIT
+ *
+ * By using this software, you agree to the terms of the license.
+ * Contributions, suggestions, and feedback are always welcome!
+ */
 
-namespace Ripple\Driver\Laravel\Virtual;
+namespace Laravel\Ripple\Virtual;
 
 use Ripple\Channel\Channel;
 use Ripple\Proc\Session;
-use Ripple\Utils\Output;
 
 use function base_path;
 use function Co\proc;
 use function file_get_contents;
-use function fwrite;
 use function putenv;
 use function uniqid;
+use function getenv;
 
 use const PHP_BINARY;
-use const STDOUT;
 
 class Virtual
 {
@@ -30,7 +38,7 @@ class Virtual
     /**
      *
      */
-    public function __construct()
+    public function __construct(public readonly string $virtualPath)
     {
         $this->id      = uniqid();
         $this->channel = \Co\channel($this->id, true);
@@ -42,18 +50,15 @@ class Virtual
     public function launch(): Session
     {
         putenv('RIP_PROJECT_PATH=' . base_path());
+        putenv('RIP_BIN_WORKING_PATH=' . base_path());
         putenv('RIP_VIRTUAL_ID=' . $this->id);
 
+        foreach (getenv() as $key => $value) {
+            putenv("{$key}={$value}");
+        }
+
         $session            = proc(PHP_BINARY);
-        $session->onMessage = static function (string $data) {
-            fwrite(STDOUT, $data);
-        };
-
-        $session->onErrorMessage = static function (string $data) {
-            Output::warning($data);
-        };
-
-        $session->write(file_get_contents(__DIR__ . '/Guide.php'));
+        $session->write(file_get_contents($this->virtualPath));
         $session->inputEot();
         return $this->session = $session;
     }

@@ -10,9 +10,11 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel;
+namespace Laravel\Ripple;
 
+use Composer\InstalledVersions;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Ripple\Octane\RippleProvider;
 
 use function config_path;
 
@@ -25,7 +27,10 @@ class Provider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->commands([Console::class]);
+        $this->commands([Command::class]);
+        if (InstalledVersions::isInstalled('laravel/octane')) {
+            $this->app->register(RippleProvider::class);
+        }
     }
 
     /**
@@ -35,7 +40,7 @@ class Provider extends ServiceProvider
     {
         $this->publishes(
             paths: [
-                __DIR__ . '/config/ripple.php' => config_path('ripple.php'),
+                __DIR__ . '/Config/ripple.php' => config_path('ripple.php'),
             ],
             groups: 'ripple-config'
         );

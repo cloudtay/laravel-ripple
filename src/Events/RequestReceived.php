@@ -10,15 +10,15 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Ripple\Driver\Laravel\Events;
+namespace Laravel\Ripple\Events;
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
-use Ripple\Driver\Laravel\Coroutine\ContextManager;
-use Ripple\Driver\Laravel\Listeners\FlushAuthenticationState;
-use Ripple\Driver\Laravel\Listeners\FlushQueuedCookies;
-use Ripple\Driver\Laravel\Listeners\FlushSessionState;
+use Laravel\Ripple\Coroutine\ContextManager;
+use Laravel\Ripple\Listeners\FlushAuthenticationState;
+use Laravel\Ripple\Listeners\FlushQueuedCookies;
+use Laravel\Ripple\Listeners\FlushSessionState;
 use Ripple\Utils\Output;
 
 class RequestReceived
