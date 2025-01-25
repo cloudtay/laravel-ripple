@@ -14,15 +14,16 @@ namespace Laravel\Ripple\Virtual;
 
 use Ripple\Channel\Channel;
 use Ripple\Proc\Session;
+use Throwable;
 
-use function base_path;
+use function array_merge;
 use function Co\proc;
-use function file_get_contents;
+use function getenv;
 use function putenv;
 use function uniqid;
-use function getenv;
 
 use const PHP_BINARY;
+use const SIGINT;
 
 class Virtual
 {
@@ -45,22 +46,42 @@ class Virtual
     }
 
     /**
+     * @param array $envs
+     *
      * @return \Ripple\Proc\Session
      */
-    public function launch(): Session
+    public function launch(array $envs = []): Session
     {
-        putenv('RIP_PROJECT_PATH=' . base_path());
-        putenv('RIP_BIN_WORKING_PATH=' . base_path());
-        putenv('RIP_VIRTUAL_ID=' . $this->id);
-
-        foreach (getenv() as $key => $value) {
+        foreach (array_merge(getenv(), $envs) as $key => $value) {
             putenv("{$key}={$value}");
         }
 
-        $session            = proc(PHP_BINARY);
-        $session->write(file_get_contents($this->virtualPath));
-        $session->inputEot();
+        $launch = fn () => proc([PHP_BINARY, $this->virtualPath]);
+
+        $session          = $launch();
+        $session->onClose = function () use ($launch, $session) {
+            unset($session->onClose);
+            $this->session = $launch();
+        };
+
         return $this->session = $session;
+    }
+
+    /**
+     * @return void
+     */
+    public function stop(): void
+    {
+        unset($this->session->onClose);
+        $this->channel->send('stop');
+        try {
+            \Co\sleep(0.1);
+            if ($this->session->getStatus('running')) {
+                \Co\sleep(1);
+                $this->session->inputSignal(SIGINT);
+            }
+        } catch (Throwable) {
+        }
     }
 
     /**

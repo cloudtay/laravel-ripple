@@ -12,12 +12,12 @@
 
 namespace Laravel\Ripple;
 
+use Illuminate\Support\Facades\Config;
 use Laravel\Ripple\Virtual\Virtual;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Channel\Channel;
 use Ripple\File\Lock;
 use Ripple\Utils\Output;
-use Throwable;
 
 use function base_path;
 use function cli_set_process_title;
@@ -27,6 +27,7 @@ use function Co\onSignal;
 use function Co\wait;
 use function config_path;
 use function file_exists;
+use function fwrite;
 use function shell_exec;
 use function sprintf;
 use function storage_path;
@@ -35,20 +36,21 @@ use const PHP_BINARY;
 use const SIGINT;
 use const SIGQUIT;
 use const SIGTERM;
+use const STDOUT;
 
 class Client
 {
     /*** @var \Laravel\Ripple\Inspector */
     public readonly Inspector $inspector;
 
-    /*** @var \Laravel\Ripple\Virtual\Virtual */
-    public readonly Virtual $virtual;
-
     /*** @var \Ripple\Channel\Channel */
     public readonly Channel $channel;
 
     /*** @var \Ripple\File\Lock */
     public readonly Lock $lock;
+
+    /*** @var \Laravel\Ripple\Virtual\Virtual */
+    public Virtual $virtual;
 
     /*** @var bool */
     public bool $owner = false;
@@ -96,8 +98,15 @@ class Client
         $this->owner = true;
         $this->lock->exclusion(false);
         $this->virtual = new Virtual(__DIR__ . '/Virtual/server.bin.php');
-        $this->virtual->launch();
-        $this->virtual->session->onMessage      = static fn (string $content) => Output::writeln($content);
+        $this->virtual->launch([
+            'RIP_PROJECT_PATH' => base_path(),
+            'RIP_VIRTUAL_ID'   => $this->virtual->id,
+
+            'RIP_HTTP_LISTEN'  => Config::get('ripple.HTTP_LISTEN'),
+            'RIP_HTTP_WORKERS' => Config::get('ripple.HTTP_WORKERS'),
+            'RIP_WATCH'        => Config::get('ripple.WATCH'),
+        ]);
+        $this->virtual->session->onMessage                 = static fn (string $content) => fwrite(STDOUT, $content);
         $this->virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
 
         $this->channel = channel(base_path(), true);
@@ -107,37 +116,27 @@ class Client
                 $command = $this->channel->receive();
                 switch ($command) {
                     case 'stop':
-                        $this->virtual->channel->send('stop');
-                        try {
-                            \Co\sleep(0.1);
-                            if ($this->virtual->session->getStatus('running')) {
-                                \Co\sleep(1);
-                                $this->virtual->session->inputSignal(SIGINT);
-                            }
-                        } catch (Throwable) {
-                        }
+                        $this->virtual->stop();
                         exit(0);
                         break;
 
                     case 'reload':
+                        fwrite(STDOUT, "\033c");
+
                         $oldVirtual = $this->virtual;
-
                         $virtual = new Virtual(__DIR__ . '/Virtual/server.bin.php');
-                        $virtual->launch();
+                        $virtual->launch([
+                            'RIP_PROJECT_PATH' => base_path(),
+                            'RIP_VIRTUAL_ID'   => $virtual->id,
+
+                            'RIP_HTTP_LISTEN'  => Config::get('ripple.HTTP_LISTEN'),
+                            'RIP_HTTP_WORKERS' => Config::get('ripple.HTTP_WORKERS'),
+                            'RIP_WATCH'        => Config::get('ripple.WATCH'),
+                        ]);
                         $this->virtual                          = $virtual;
-                        $this->virtual->session->onMessage      = static fn (string $content) => Output::writeln($content);
+                        $this->virtual->session->onMessage = static fn (string $content) => fwrite(STDOUT, $content);
                         $this->virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
-                        $oldVirtual->channel->send('stop');
-
-                        try {
-                            \Co\sleep(0.1);
-                            if ($oldVirtual->session->getStatus('running')) {
-                                \Co\sleep(1);
-                                $oldVirtual->session->inputSignal(SIGINT);
-                            }
-                        } catch (Throwable) {
-                        }
-
+                        $oldVirtual->stop();
                         break;
                 }
             }
@@ -159,7 +158,7 @@ class Client
             Output::warning('Failed to register signal handler');
         }
 
-        cli_set_process_title('laravel-guard');
+        cli_set_process_title('laravel-ware');
         wait();
     }
 

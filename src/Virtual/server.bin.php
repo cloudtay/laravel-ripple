@@ -14,24 +14,41 @@
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Console\Kernel;
-use Illuminate\Support\Facades\Config;
+use Laravel\Ripple\Coroutine\ContextManager;
 use Laravel\Ripple\Factory;
 use Laravel\Ripple\HttpWorker;
-use Revolt\EventLoop\UnsupportedFeatureException;
+use Laravel\Ripple\Util;
 use Ripple\Utils\Output;
 use Ripple\Worker\Manager;
 
 use function Co\async;
 use function Co\channel;
-use function Co\onSignal;
 use function Co\wait;
 
 \cli_set_process_title('laravel-virtual');
 \define("RIP_PROJECT_PATH", \realpath(\getenv('RIP_PROJECT_PATH')));
 \define("RIP_VIRTUAL_ID", \getenv('RIP_VIRTUAL_ID'));
+\define("RIP_HTTP_WORKERS", \intval(\getenv('RIP_HTTP_WORKERS')));
+\define("RIP_HTTP_LISTEN", \strval(\getenv('RIP_HTTP_LISTEN')));
+\define("RIP_WATCH", \boolval(\getenv('RIP_WATCH')));
+
+if (!\function_exists('app')) {
+    /**
+     * @param string|null $abstract
+     * @param array       $parameters
+     *
+     * @return mixed
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     */
+    function app(string $abstract = null, array $parameters = []): mixed
+    {
+        return ContextManager::app($abstract, $parameters);
+    }
+}
+
 require RIP_PROJECT_PATH . '/vendor/autoload.php';
 
-/*** loadDeferredProviders */
+/*** LoadDeferredProviders */
 try {
     $application = Factory::createApplication();
     $kernel      = $application->make(Kernel::class);
@@ -44,12 +61,9 @@ try {
     exit(1);
 }
 
-$manager->addWorker(new HttpWorker(
-    $application,
-    \strval(Config::get('ripple.HTTP_LISTEN', 'http://127.0.0.1:8008')),
-    \intval(Config::get('ripple.HTTP_WORKER_COUNT', 1)),
-    \boolval(Config::get('ripple.HTTP_RELOAD', true))
-));
+$manager->add($httpWorker = new HttpWorker($application, RIP_HTTP_LISTEN, RIP_HTTP_WORKERS, RIP_WATCH));
+$application->singleton(Manager::class, static fn () => $manager);
+$application->singleton(HttpWorker::class, static fn () => $httpWorker);
 
 /*** Hot reload part */
 $projectChannel           = channel(RIP_PROJECT_PATH);
@@ -60,42 +74,31 @@ $hotReload                = function (string $file) use ($manager, $includedFile
     } else {
         $manager->reload();
         $date = \date('Y-m-d H:i:s');
-        \is_file($file) && Output::writeln("[{$date}] {$file} has been modified");
+        \is_file($file)
+        && ($file = Util::getRelativePath($file, RIP_PROJECT_PATH))
+        && Output::writeln("[{$date}] {$file} has been modified");
     }
 };
 $hotReloadWatch           = Factory::createMonitor();
 $hotReloadWatch->onModify = $hotReload;
 $hotReloadWatch->onTouch  = $hotReload;
 $hotReloadWatch->onRemove = $hotReload;
-$hotReloadWatch->run();
+if (RIP_WATCH) {
+    $hotReloadWatch->run();
+}
 
 /*** Guardian part*/
 async(function () use ($manager) {
     $channel = channel(RIP_VIRTUAL_ID, true);
-    try {
-        onSignal(\SIGINT, function () use ($manager) {
-            $manager->stop();
-            exit(0);
-        });
-
-        onSignal(\SIGTERM, function () use ($manager) {
-            $manager->stop();
-            exit(0);
-        });
-
-        onSignal(\SIGQUIT, function () use ($manager) {
-            $manager->stop();
-            exit(0);
-        });
-    } catch (UnsupportedFeatureException) {
-        Output::warning('Failed to register signal handler');
-    }
-
     while (1) {
         $control = $channel->receive();
         if ($control === 'stop') {
-            $manager->stop();
+            $manager->terminate();
             exit(0);
+        }
+
+        if ($control === 'reload') {
+            $manager->reload();
         }
     }
 });

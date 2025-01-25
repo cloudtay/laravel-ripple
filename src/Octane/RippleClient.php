@@ -18,6 +18,7 @@ use Laravel\Octane\Contracts\Client;
 use Laravel\Octane\OctaneResponse;
 use Laravel\Octane\RequestContext;
 use Laravel\Ripple\Response\IteratorResponse;
+use Ripple\Utils\Output;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
@@ -92,6 +93,6 @@ class RippleClient implements Client
      */
     public function error(Throwable $e, Application $app, Request $request, RequestContext $context): void
     {
-        // TODO: Implement error() method.
+        Output::error($e->getMessage());
     }
 }

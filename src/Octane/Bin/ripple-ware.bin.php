@@ -16,13 +16,11 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Laravel\Ripple\Factory;
 use Laravel\Ripple\Virtual\Virtual;
-use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Utils\Output;
 
 use function Co\async;
 use function Co\channel;
 use function Co\lock;
-use function Co\onSignal;
 use function Co\wait;
 
 \cli_set_process_title('laravel-ware');
@@ -50,30 +48,25 @@ try {
 }
 
 $virtual = new Virtual($imagePath);
-$virtual->launch();
-$virtual->session->onMessage      = static fn (string $content) => Output::writeln($content);
+$virtual->launch(\getenv());
+
+$virtual->session->onMessage = static fn (string $content) => \fwrite(\STDOUT, $content);
 $virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
 
 $virtualStop = static function () use (&$virtual) {
-    $virtual->channel->send('stop');
-    try {
-        \Co\sleep(0.1);
-        if ($virtual->session->getStatus('running')) {
-            \Co\sleep(1);
-            $virtual->session->inputSignal(\SIGINT);
-        }
-    } catch (Throwable) {
-    }
+    $virtual->stop();
     exit(0);
 };
 
 $virtualReboot = static function () use (&$virtual, $imagePath) {
+    \fwrite(\STDOUT, "\033c");
+
     $oldVirtual = $virtual;
     $_virtual   = new Virtual($imagePath);
-    $_virtual->launch();
+    $_virtual->launch(\getenv());
     $oldVirtual->channel->send('stop');
     $virtual                          = $_virtual;
-    $virtual->session->onMessage      = static fn (string $content) => Output::writeln($content);
+    $virtual->session->onMessage = static fn (string $content) => \fwrite(\STDOUT, $content);
     $virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
 };
 
@@ -92,21 +85,4 @@ async(function () use ($projectChannel, $virtualStop, $virtualReboot) {
         }
     }
 });
-
-try {
-    onSignal(\SIGINT, function () use ($virtualStop) {
-        $virtualStop();
-    });
-
-    onSignal(\SIGTERM, function () use ($virtualStop) {
-        $virtualStop();
-    });
-
-    onSignal(\SIGQUIT, function () use ($virtualStop) {
-        $virtualStop();
-    });
-} catch (UnsupportedFeatureException) {
-    Output::warning('Failed to register signal handler');
-}
-
 wait();

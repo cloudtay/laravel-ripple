@@ -88,10 +88,10 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
                 'RIP_PROJECT_PATH'     => base_path(),
                 'RIP_BIN_WORKING_PATH' => $binPath,
                 'APP_BASE_PATH'        => base_path(),
-                'RIP_HOST'             => $this->option('host') ?? '127.0.0.1',
-                'RIP_PORT'             => $this->option('port') ?? 8000,
+                'RIP_HOST'             => $this->getHost(),
+                'RIP_PORT'             => $this->getPort(),
                 'RIP_WORKERS'          => $workers,
-                'RIP_RELOAD'           => $watch ?? 0
+                'RIP_WATCH'           => $watch ?? 0
             ]
         );
         $process->start();
