@@ -27,7 +27,6 @@ use function Co\onSignal;
 use function Co\wait;
 use function config_path;
 use function file_exists;
-use function fwrite;
 use function shell_exec;
 use function sprintf;
 use function storage_path;
@@ -36,7 +35,6 @@ use const PHP_BINARY;
 use const SIGINT;
 use const SIGQUIT;
 use const SIGTERM;
-use const STDOUT;
 
 class Client
 {
@@ -106,7 +104,7 @@ class Client
             'RIP_HTTP_WORKERS' => Config::get('ripple.HTTP_WORKERS'),
             'RIP_WATCH'        => Config::get('ripple.WATCH'),
         ]);
-        $this->virtual->session->onMessage                 = static fn (string $content) => fwrite(STDOUT, $content);
+        $this->virtual->session->onMessage                 = static fn (string $content) => Output::write($content);
         $this->virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
 
         $this->channel = channel(base_path(), true);
@@ -121,7 +119,7 @@ class Client
                         break;
 
                     case 'reload':
-                        fwrite(STDOUT, "\033c");
+                        Output::write("\033c");
 
                         $oldVirtual = $this->virtual;
                         $virtual = new Virtual(__DIR__ . '/Virtual/server.bin.php');
@@ -134,7 +132,7 @@ class Client
                             'RIP_WATCH'        => Config::get('ripple.WATCH'),
                         ]);
                         $this->virtual                          = $virtual;
-                        $this->virtual->session->onMessage = static fn (string $content) => fwrite(STDOUT, $content);
+                        $this->virtual->session->onMessage = static fn (string $content) => Output::write($content);
                         $this->virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
                         $oldVirtual->stop();
                         break;

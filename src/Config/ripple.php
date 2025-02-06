@@ -16,5 +16,5 @@ use Illuminate\Support\Env;
 return [
     'HTTP_LISTEN'  => Env::get('RIP_HTTP_LISTEN', 'http://127.0.0.1:8008'),
     'HTTP_WORKERS' => Env::get('RIP_HTTP_WORKERS', 1),
-    'HTTP_WATCH' => Env::get('RIP_WATCH', 0)
+    'WATCH' => Env::get('RIP_WATCH', 1)
 ];

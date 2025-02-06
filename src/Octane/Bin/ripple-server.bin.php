@@ -72,7 +72,7 @@ $projectChannel = channel(RIP_PROJECT_PATH);
 $includedFiles  = \get_included_files();
 $hotReload      = static function (string $file) use ($manager, $includedFiles, $projectChannel) {
     if (\in_array($file, $includedFiles, true)) {
-        \fwrite(\STDOUT, "\033c");
+        Output::write("\033c");
         $projectChannel->send('reload');
     } else {
         $manager->reload();
@@ -87,7 +87,7 @@ $hotReloadWatch           = Factory::createMonitor();
 $hotReloadWatch->onModify = $hotReload;
 $hotReloadWatch->onTouch  = $hotReload;
 $hotReloadWatch->onRemove = $hotReload;
-if (\boolval(RIP_WATCH)) {
+if (RIP_WATCH) {
     $hotReloadWatch->run();
 }
 

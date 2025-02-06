@@ -12,6 +12,7 @@
 
 namespace Laravel\Ripple\Octane\Commands;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Laravel\Octane\Commands\StatusCommand;
 use Laravel\Ripple\Octane\RippleServerProcessInspector;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -60,6 +61,11 @@ class RippleStatusCommand extends StatusCommand
      */
     private function isRippleServerRunning(): bool
     {
-        return app(RippleServerProcessInspector::class)->serverIsRunning();
+        try {
+            return app(RippleServerProcessInspector::class)->serverIsRunning();
+        } catch (BindingResolutionException $e) {
+            $this->components->error('Unable to resolve Ripple server process inspector.');
+            return false;
+        }
     }
 }

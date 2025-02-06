@@ -50,7 +50,7 @@ try {
 $virtual = new Virtual($imagePath);
 $virtual->launch(\getenv());
 
-$virtual->session->onMessage = static fn (string $content) => \fwrite(\STDOUT, $content);
+$virtual->session->onMessage = static fn (string $content) => Output::write($content);
 $virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
 
 $virtualStop = static function () use (&$virtual) {
@@ -59,14 +59,14 @@ $virtualStop = static function () use (&$virtual) {
 };
 
 $virtualReboot = static function () use (&$virtual, $imagePath) {
-    \fwrite(\STDOUT, "\033c");
+    Output::write("\033c");
 
     $oldVirtual = $virtual;
     $_virtual   = new Virtual($imagePath);
     $_virtual->launch(\getenv());
     $oldVirtual->channel->send('stop');
     $virtual                          = $_virtual;
-    $virtual->session->onMessage = static fn (string $content) => \fwrite(\STDOUT, $content);
+    $virtual->session->onMessage = static fn (string $content) => Output::write($content);
     $virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
 };
 

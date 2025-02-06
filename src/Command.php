@@ -87,7 +87,6 @@ class Command extends \Illuminate\Console\Command
                     Output::warning('the server is not running');
                     return;
                 }
-
                 $client->reload();
                 break;
 

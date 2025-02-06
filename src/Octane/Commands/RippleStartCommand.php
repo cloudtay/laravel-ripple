@@ -12,6 +12,7 @@
 
 namespace Laravel\Ripple\Octane\Commands;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Laravel\Octane\Commands\Command;
 use Laravel\Octane\Commands\Concerns\InteractsWithEnvironmentVariables;
 use Laravel\Octane\Commands\Concerns\InteractsWithServers;
@@ -103,7 +104,12 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
      */
     public function stopServer(): bool
     {
-        return app(RippleServerProcessInspector::class)->stopServer();
+        try {
+            return app(RippleServerProcessInspector::class)->stopServer();
+        } catch (BindingResolutionException $e) {
+            Output::error('Unable to resolve Ripple server process inspector.');
+            return false;
+        }
     }
 
     /**
