@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple;
+namespace Laravel\Ripple\Inspector;
 
 use function base_path;
 use function Co\channel;

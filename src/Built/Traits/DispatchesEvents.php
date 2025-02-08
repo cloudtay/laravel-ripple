@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple\Traits;
+namespace Laravel\Ripple\Built\Traits;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Foundation\Application;

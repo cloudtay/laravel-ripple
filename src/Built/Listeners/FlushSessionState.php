@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple\Listeners;
+namespace Laravel\Ripple\Built\Listeners;
 
 class FlushSessionState
 {

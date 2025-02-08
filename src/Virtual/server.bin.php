@@ -14,8 +14,8 @@
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Console\Kernel;
-use Laravel\Ripple\Coroutine\ContextManager;
-use Laravel\Ripple\Factory;
+use Laravel\Ripple\Built\Coroutine\ContextManager;
+use Laravel\Ripple\Built\Factory;
 use Laravel\Ripple\HttpWorker;
 use Laravel\Ripple\Util;
 use Ripple\Utils\Output;

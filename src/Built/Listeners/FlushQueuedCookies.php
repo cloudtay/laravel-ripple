@@ -10,11 +10,9 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple\Listeners;
+namespace Laravel\Ripple\Built\Listeners;
 
-use function with;
-
-class FlushAuthenticationState
+class FlushQueuedCookies
 {
     /**
      * Handle the event.
@@ -23,15 +21,10 @@ class FlushAuthenticationState
      */
     public function handle(mixed $event): void
     {
-        if ($event->sandbox->resolved('auth.driver')) {
-            $event->sandbox->forgetInstance('auth.driver');
+        if (!$event->sandbox->resolved('cookie')) {
+            return;
         }
 
-        if ($event->sandbox->resolved('auth')) {
-            with($event->sandbox->make('auth'), function ($auth) use ($event) {
-                $auth->setApplication($event->sandbox);
-                $auth->forgetGuards();
-            });
-        }
+        $event->sandbox->make('cookie')->flushQueuedCookies();
     }
 }

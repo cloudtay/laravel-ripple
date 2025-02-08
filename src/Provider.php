@@ -14,6 +14,7 @@ namespace Laravel\Ripple;
 
 use Composer\InstalledVersions;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Ripple\Built\Command;
 use Laravel\Ripple\Octane\RippleProvider;
 
 use function config_path;

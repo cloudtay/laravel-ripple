@@ -14,7 +14,7 @@ namespace Laravel\Ripple\Octane\Commands;
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Laravel\Octane\Commands\StopCommand;
-use Laravel\Ripple\Inspector;
+use Laravel\Ripple\Inspector\Inspector;
 use Symfony\Component\Console\Attribute\AsCommand;
 
 use function app;

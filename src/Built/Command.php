@@ -10,8 +10,9 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple;
+namespace Laravel\Ripple\Built;
 
+use Laravel\Ripple\Inspector\Client;
 use Ripple\Utils\Output;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -52,7 +53,7 @@ class Command extends \Illuminate\Console\Command
     /**
      * 运行服务
      *
-     * @param \Laravel\Ripple\Client $client
+     * @param \Laravel\Ripple\Inspector\Client $client
      *
      * @return void
      */

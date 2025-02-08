@@ -10,10 +10,10 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple\Events;
+namespace Laravel\Ripple\Built\Events;
 
 use Illuminate\Foundation\Application;
-use Laravel\Ripple\Coroutine\ContextManager;
+use Laravel\Ripple\Built\Coroutine\ContextManager;
 use Throwable;
 
 class WorkerErrorOccurred

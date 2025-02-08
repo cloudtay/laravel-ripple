@@ -10,16 +10,17 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple\Events;
+namespace Laravel\Ripple\Built\Events;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
+use Laravel\Ripple\Built\Coroutine\ContextManager;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- *
+ * Class RequestTerminated
  */
-class RequestHandled
+class RequestTerminated
 {
     /**
      * @param \Illuminate\Foundation\Application         $app
@@ -29,5 +30,6 @@ class RequestHandled
      */
     public function __construct(public Application $app, public Application $sandbox, public Request $request, public Response $response)
     {
+        ContextManager::unbind();
     }
 }

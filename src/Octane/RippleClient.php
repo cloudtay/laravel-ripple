@@ -17,7 +17,7 @@ use Illuminate\Http\Request;
 use Laravel\Octane\Contracts\Client;
 use Laravel\Octane\OctaneResponse;
 use Laravel\Octane\RequestContext;
-use Laravel\Ripple\Response\IteratorResponse;
+use Laravel\Ripple\Built\Response\IteratorResponse;
 use Ripple\Utils\Output;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;

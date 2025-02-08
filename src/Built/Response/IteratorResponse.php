@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple\Response;
+namespace Laravel\Ripple\Built\Response;
 
 use Closure;
 use Iterator;

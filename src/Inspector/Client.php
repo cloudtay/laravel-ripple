@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple;
+namespace Laravel\Ripple\Inspector;
 
 use Illuminate\Support\Facades\Config;
 use Laravel\Ripple\Virtual\Virtual;
@@ -38,7 +38,7 @@ use const SIGTERM;
 
 class Client
 {
-    /*** @var \Laravel\Ripple\Inspector */
+    /*** @var \Laravel\Ripple\Inspector\Inspector */
     public readonly Inspector $inspector;
 
     /*** @var \Ripple\Channel\Channel */
@@ -95,7 +95,7 @@ class Client
 
         $this->owner = true;
         $this->lock->exclusion(false);
-        $this->virtual = new Virtual(__DIR__ . '/Virtual/server.bin.php');
+        $this->virtual = new Virtual(__DIR__ . '/../Virtual/server.bin.php');
         $this->virtual->launch([
             'RIP_PROJECT_PATH' => base_path(),
             'RIP_VIRTUAL_ID'   => $this->virtual->id,
@@ -122,7 +122,7 @@ class Client
                         Output::write("\033c");
 
                         $oldVirtual = $this->virtual;
-                        $virtual = new Virtual(__DIR__ . '/Virtual/server.bin.php');
+                        $virtual = new Virtual(__DIR__ . '/../Virtual/server.bin.php');
                         $virtual->launch([
                             'RIP_PROJECT_PATH' => base_path(),
                             'RIP_VIRTUAL_ID'   => $virtual->id,

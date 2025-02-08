@@ -16,7 +16,7 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Laravel\Octane\ApplicationFactory;
 use Laravel\Octane\RequestContext;
 use Laravel\Octane\Worker;
-use Laravel\Ripple\Factory;
+use Laravel\Ripple\Built\Factory;
 use Laravel\Ripple\HttpWorker;
 use Laravel\Ripple\Octane\RippleClient;
 use Laravel\Ripple\Util;

@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple\Coroutine;
+namespace Laravel\Ripple\Built\Coroutine;
 
 use Fiber;
 use Illuminate\Container\Container;
@@ -18,10 +18,7 @@ use Illuminate\Container\Container;
 use function is_null;
 use function spl_object_hash;
 
-/**
- *
- */
-class ContextManager
+class ContainerMap
 {
     /*** @var array */
     private static array $applications = [];
@@ -36,8 +33,7 @@ class ContextManager
         if (!$fiber = Fiber::getCurrent()) {
             return;
         }
-
-        ContextManager::$applications[spl_object_hash($fiber)] = $application;
+        ContainerMap::$applications[spl_object_hash($fiber)] = $application;
     }
 
     /**
@@ -48,8 +44,7 @@ class ContextManager
         if (!$fiber = Fiber::getCurrent()) {
             return;
         }
-
-        unset(ContextManager::$applications[spl_object_hash($fiber)]);
+        unset(ContainerMap::$applications[spl_object_hash($fiber)]);
     }
 
     /**
@@ -61,7 +56,7 @@ class ContextManager
      */
     public static function app(string $abstract = null, array $parameters = []): mixed
     {
-        $container = ContextManager::current();
+        $container = ContainerMap::current();
         if (is_null($abstract)) {
             return $container;
         }
@@ -78,6 +73,6 @@ class ContextManager
             return Container::getInstance();
         }
 
-        return ContextManager::$applications[spl_object_hash($fiber)] ?? Container::getInstance();
+        return ContainerMap::$applications[spl_object_hash($fiber)] ?? Container::getInstance();
     }
 }

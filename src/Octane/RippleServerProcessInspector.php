@@ -13,7 +13,7 @@
 namespace Laravel\Ripple\Octane;
 
 use Laravel\Octane\Contracts\ServerProcessInspector as ServerProcessInspectorContract;
-use Laravel\Ripple\Client;
+use Laravel\Ripple\Inspector\Client;
 
 /**
  *
@@ -21,7 +21,7 @@ use Laravel\Ripple\Client;
 class RippleServerProcessInspector implements ServerProcessInspectorContract
 {
     /**
-     * @param \Laravel\Ripple\Client $client
+     * @param \Laravel\Ripple\Inspector\Client $client
      */
     public function __construct(protected readonly Client $client)
     {

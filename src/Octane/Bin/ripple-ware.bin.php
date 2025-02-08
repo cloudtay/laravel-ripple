@@ -14,7 +14,7 @@
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-use Laravel\Ripple\Factory;
+use Laravel\Ripple\Built\Factory;
 use Laravel\Ripple\Virtual\Virtual;
 use Ripple\Utils\Output;
 

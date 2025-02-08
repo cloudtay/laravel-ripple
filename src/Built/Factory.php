@@ -10,7 +10,7 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
-namespace Laravel\Ripple;
+namespace Laravel\Ripple\Built;
 
 use Illuminate\Foundation\Application;
 use Ripple\File\File;
