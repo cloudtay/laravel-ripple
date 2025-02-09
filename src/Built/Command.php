@@ -29,7 +29,7 @@ class Command extends \Illuminate\Console\Command
      * @var string
      */
     protected $signature = 'ripple:server
-    {action=start : the action to perform ,Support start|stop|reload|status}
+    {action=start : the action to perform ,Support start|stop|reload|restart|status}
     {--d|daemon : Run the server in the background}';
 
     /**
@@ -80,7 +80,7 @@ class Command extends \Illuminate\Console\Command
                     Output::warning('the server is not running');
                     return;
                 }
-                $client->stop();
+                $client->inspector->stopServer();
                 break;
 
             case 'reload':
@@ -88,7 +88,15 @@ class Command extends \Illuminate\Console\Command
                     Output::warning('the server is not running');
                     return;
                 }
-                $client->reload();
+                $client->inspector->reloadServer();
+                break;
+
+            case 'restart':
+                if (!$client->inspector->serverIsRunning()) {
+                    Output::warning('the server is not running');
+                    return;
+                }
+                $client->inspector->restartServer();
                 break;
 
             case 'status':

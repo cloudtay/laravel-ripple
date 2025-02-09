@@ -14,16 +14,15 @@ namespace Laravel\Ripple\Virtual;
 
 use Ripple\Channel\Channel;
 use Ripple\Proc\Session;
-use Throwable;
 
 use function array_merge;
 use function Co\proc;
+use function file_get_contents;
 use function getenv;
 use function putenv;
 use function uniqid;
 
 use const PHP_BINARY;
-use const SIGINT;
 
 class Virtual
 {
@@ -43,28 +42,42 @@ class Virtual
     {
         $this->id      = uniqid();
         $this->channel = \Co\channel($this->id, true);
+        putenv("RIP_VIRTUAL_ID={$this->id}");
     }
 
     /**
      * @param array $envs
      *
-     * @return \Ripple\Proc\Session
+     * @return \Ripple\Proc\Session|false
      */
-    public function launch(array $envs = []): Session
+    public function launch(array $envs = []): Session|false
     {
         foreach (array_merge(getenv(), $envs) as $key => $value) {
             putenv("{$key}={$value}");
         }
 
-        $launch = fn () => proc([PHP_BINARY, $this->virtualPath]);
+        $this->guard();
+        return $this->session;
+    }
 
-        $session          = $launch();
-        $session->onClose = function () use ($launch, $session) {
-            unset($session->onClose);
-            $this->session = $launch();
-        };
+    /**
+     * @return Session
+     */
+    public function guard(): Session
+    {
+        $this->session = proc(PHP_BINARY);
+        $this->session->input(file_get_contents($this->virtualPath));
+        $this->session->inputEot();
+        $this->session->onClose = fn () => $this->onTerminate();
+        return $this->session;
+    }
 
-        return $this->session = $session;
+    /**
+     * @return void
+     */
+    private function onTerminate(): void
+    {
+        $this->guard();
     }
 
     /**
@@ -73,15 +86,7 @@ class Virtual
     public function stop(): void
     {
         unset($this->session->onClose);
-        $this->channel->send('stop');
-        try {
-            \Co\sleep(0.1);
-            if ($this->session->getStatus('running')) {
-                \Co\sleep(1);
-                $this->session->inputSignal(SIGINT);
-            }
-        } catch (Throwable) {
-        }
+        $this->session->close();
     }
 
     /**

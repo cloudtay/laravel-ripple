@@ -12,7 +12,9 @@
 
 namespace Laravel\Ripple\Inspector;
 
+use Composer\InstalledVersions;
 use Illuminate\Support\Facades\Config;
+use JetBrains\PhpStorm\NoReturn;
 use Laravel\Ripple\Virtual\Virtual;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Channel\Channel;
@@ -95,46 +97,50 @@ class Client
 
         $this->owner = true;
         $this->lock->exclusion(false);
-        $this->virtual = new Virtual(__DIR__ . '/../Virtual/server.bin.php');
-        $this->virtual->launch([
+        $this->channel = channel(base_path(), true);
+        $this->virtual = $this->launchVirtual();
+        $this->monitor();
+    }
+
+    /**
+     * @return \Laravel\Ripple\Virtual\Virtual
+     */
+    private function launchVirtual(): Virtual
+    {
+        $virtual = new Virtual(__DIR__ . '/../Virtual/server.bin.php');
+        $virtual->launch([
             'RIP_PROJECT_PATH' => base_path(),
-            'RIP_VIRTUAL_ID'   => $this->virtual->id,
+            'RIP_VIRTUAL_ID'   => $virtual->id,
 
             'RIP_HTTP_LISTEN'  => Config::get('ripple.HTTP_LISTEN'),
             'RIP_HTTP_WORKERS' => Config::get('ripple.HTTP_WORKERS'),
             'RIP_WATCH'        => Config::get('ripple.WATCH'),
+            'RIP_HOOK'         => InstalledVersions::isInstalled('laravel/octane') ? 0 : 1,
         ]);
-        $this->virtual->session->onMessage                 = static fn (string $content) => Output::write($content);
-        $this->virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
+        $virtual->session->onMessage      = static fn (string $content) => Output::write($content);
+        $virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
+        return $virtual;
+    }
 
-        $this->channel = channel(base_path(), true);
-
+    /**
+     * @return void
+     */
+    private function monitor(): void
+    {
         async(function () {
             while (1) {
                 $command = $this->channel->receive();
                 switch ($command) {
                     case 'stop':
-                        $this->virtual->stop();
-                        exit(0);
+                        $this->stop();
                         break;
 
                     case 'reload':
-                        Output::write("\033c");
+                        $this->reload();
+                        break;
 
-                        $oldVirtual = $this->virtual;
-                        $virtual = new Virtual(__DIR__ . '/../Virtual/server.bin.php');
-                        $virtual->launch([
-                            'RIP_PROJECT_PATH' => base_path(),
-                            'RIP_VIRTUAL_ID'   => $virtual->id,
-
-                            'RIP_HTTP_LISTEN'  => Config::get('ripple.HTTP_LISTEN'),
-                            'RIP_HTTP_WORKERS' => Config::get('ripple.HTTP_WORKERS'),
-                            'RIP_WATCH'        => Config::get('ripple.WATCH'),
-                        ]);
-                        $this->virtual                          = $virtual;
-                        $this->virtual->session->onMessage = static fn (string $content) => Output::write($content);
-                        $this->virtual->session->onErrorMessage = static fn (string $content) => Output::error($content);
-                        $oldVirtual->stop();
+                    case 'restart':
+                        $this->restart();
                         break;
                 }
             }
@@ -152,7 +158,7 @@ class Client
             onSignal(SIGQUIT, function () {
                 $this->stop();
             });
-        } catch (UnsupportedFeatureException) {
+        } catch (UnsupportedFeatureException $e) {
             Output::warning('Failed to register signal handler');
         }
 
@@ -161,11 +167,17 @@ class Client
     }
 
     /**
-     * @return bool
+     * @return void
      */
-    public function stop(): bool
+    #[NoReturn] public function stop(): void
     {
-        return $this->inspector->stopServer();
+        if (!isset($this->virtual)) {
+            return;
+        }
+
+        $this->virtual->channel->send('stop');
+        $this->virtual->stop();
+        exit(0);
     }
 
     /**
@@ -173,6 +185,25 @@ class Client
      */
     public function reload(): void
     {
-        $this->inspector->reloadServer();
+        if (!isset($this->virtual)) {
+            return;
+        }
+
+        $this->virtual->channel->send('reload');
+    }
+
+    /**
+     * @return void
+     */
+    public function restart(): void
+    {
+        if (!isset($this->virtual)) {
+            return;
+        }
+
+        Output::write("\033c");
+        $oldVirtual    = $this->virtual;
+        $this->virtual = $this->launchVirtual();
+        $oldVirtual->stop();
     }
 }

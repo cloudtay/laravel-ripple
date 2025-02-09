@@ -36,17 +36,20 @@ class RippleClient implements Client
      */
     public function marshalRequest(RequestContext $context): array
     {
-        $rippleRequest = $context->data['rippleRequest'];
+        $rippleHttpRequest = $context->data['rippleHttpRequest'];
+        $request       = new Request(
+            $rippleHttpRequest->GET,
+            $rippleHttpRequest->POST,
+            [],
+            $rippleHttpRequest->COOKIE,
+            $rippleHttpRequest->FILES,
+            $rippleHttpRequest->SERVER,
+            $rippleHttpRequest->CONTENT,
+        );
+        $request->attributes->set('rippleHttpRequest', $rippleHttpRequest);
+
         return [
-            new Request(
-                $rippleRequest->GET,
-                $rippleRequest->POST,
-                [],
-                $rippleRequest->COOKIE,
-                $rippleRequest->FILES,
-                $rippleRequest->SERVER,
-                $rippleRequest->CONTENT,
-            ),
+            $request,
             $context
         ];
     }
@@ -59,8 +62,8 @@ class RippleClient implements Client
      */
     public function respond(RequestContext $context, OctaneResponse $response): void
     {
-        $rippleRequest   = $context->data['rippleRequest'];
-        $rippleResponse  = $rippleRequest->getResponse();
+        $rippleHttpRequest   = $context->data['rippleHttpRequest'];
+        $rippleResponse  = $rippleHttpRequest->getResponse();
         $laravelResponse = $response->response;
         $rippleResponse->setStatusCode($laravelResponse->getStatusCode());
 

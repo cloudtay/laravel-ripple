@@ -1,0 +1,86 @@
+name: test-octane
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-unix:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        php: [ '8.2','8.3','8.4' ]
+
+    steps:
+      # 检出代码
+      - uses: actions/checkout@v3
+
+      # 安装 PHP 和扩展
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: posix, sockets, pcntl, openssl, curl, ev, fileinfo, sqlite3
+
+      # 安装Apache Benchmark
+      - name: Install Apache Benchmark
+        run: |
+          sudo apt-get update
+          sudo apt-get install apache2-utils -y
+
+      # 安装 Composer 依赖
+      - name: Install Laravel
+        run: |
+          composer install
+          composer create-project --prefer-dist laravel/laravel app "^11.0"
+
+      # 配置 Laravel 引擎插件
+      - name: Initialize ripple
+        working-directory: app
+        run: |
+          composer config repositories.local-plugin path ../
+          composer require cloudtay/laravel-ripple:dev-main
+          composer require laravel/octane
+
+      # 初始化测试路由
+      - name: Initialize Test Route
+        working-directory: app
+        run: |
+          echo "RIP_HTTP_LISTEN=http://127.0.0.1:8000" >> .env
+          echo "RIP_HTTP_WORKERS=1" >> .env
+          php artisan vendor:publish --tag=ripple-config
+          php artisan optimize
+
+      # 启动引擎服务
+      - name: Start Server
+        working-directory: app
+        run: |
+          php artisan ripple:server start > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 10
+          cat server.log
+
+      # 访问测试
+      - name: Run Test
+        working-directory: app
+        run: |
+          curl http://127.0.0.1:8000/ > curl.log
+
+      # 压力测试
+      - name: Run Stress testing
+        working-directory: app
+        run: |
+          ab -n 1000 -c 20 -k http://127.0.0.1:8000/
+
+      # 关闭服务
+      - name: Stop Server
+        working-directory: app
+        run: |
+          php artisan ripple:server stop

@@ -12,7 +12,6 @@
 
 namespace Laravel\Ripple\Octane\Commands;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Laravel\Octane\Commands\Command;
 use Laravel\Octane\Commands\Concerns\InteractsWithEnvironmentVariables;
 use Laravel\Octane\Commands\Concerns\InteractsWithServers;
@@ -21,9 +20,7 @@ use Ripple\Utils\Output;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Process\Process;
 
-use function app;
 use function base_path;
-use function realpath;
 
 use const PHP_BINARY;
 
@@ -81,18 +78,21 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
             $workers = 1;
         }
 
-        $binPath = realpath(__DIR__ . '/../Bin');
         $process = new Process(
-            command: [PHP_BINARY, './ripple-ware.bin.php'],
-            cwd: $binPath,
+            command: [
+                PHP_BINARY,
+                base_path('artisan'),
+                'ripple:server'
+            ],
+            cwd: base_path(),
             env: [
                 'RIP_PROJECT_PATH'     => base_path(),
-                'RIP_BIN_WORKING_PATH' => $binPath,
+                'RIP_BIN_WORKING_PATH' => base_path(),
                 'APP_BASE_PATH'        => base_path(),
                 'RIP_HOST'             => $this->getHost(),
                 'RIP_PORT'             => $this->getPort(),
                 'RIP_WORKERS'          => $workers,
-                'RIP_WATCH'           => $watch ?? 0
+                'RIP_WATCH'            => $watch ?? 0
             ]
         );
         $process->start();
@@ -104,12 +104,7 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
      */
     public function stopServer(): bool
     {
-        try {
-            return app(RippleServerProcessInspector::class)->stopServer();
-        } catch (BindingResolutionException $e) {
-            Output::error('Unable to resolve Ripple server process inspector.');
-            return false;
-        }
+        return true;
     }
 
     /**

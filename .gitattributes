@@ -1,0 +1,4 @@
+/tests/ export-ignore
+/.github/ export-ignore
+.gitattributes export-ignore
+.php-cs-fixer.php export-ignore

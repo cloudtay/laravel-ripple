@@ -62,4 +62,17 @@ class Inspector
         $channel->send('stop');
         return true;
     }
+
+    /**
+     * @return void
+     */
+    public function restartServer(): void
+    {
+        if (!$this->serverIsRunning()) {
+            return;
+        }
+
+        $channel = channel(base_path());
+        $channel->send('restart');
+    }
 }

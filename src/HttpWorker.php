@@ -51,9 +51,9 @@ class HttpWorker extends Worker
 
     /**
      * @param \Illuminate\Foundation\Application $application
-     * @param string $address
-     * @param int    $count
-     * @param bool   $reload
+     * @param string                             $address
+     * @param int                                $count
+     * @param bool                               $reload
      */
     public function __construct(
         protected Application $application,
@@ -61,7 +61,7 @@ class HttpWorker extends Worker
         protected int         $count,
         protected bool        $reload = false,
     ) {
-        $this->name    = 'http-server';
+        $this->name = 'http-server';
     }
 
     /**
@@ -178,7 +178,7 @@ class HttpWorker extends Worker
             }
 
             $response->respond();
-            /*** handle response end*/
+            /*** handle the response end*/
 
             $this->dispatchEvent($application, new RequestHandled($this->application, $application, $laravelRequest, $laravelResponse));
 
