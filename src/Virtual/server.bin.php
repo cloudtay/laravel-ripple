@@ -31,6 +31,7 @@ use Ripple\Worker\Manager;
 use function Co\async;
 use function Co\channel;
 use function Co\onSignal;
+use function Co\repeat;
 use function Co\wait;
 
 \cli_set_process_title('laravel-virtual');
@@ -126,7 +127,7 @@ $application->singleton(HttpWorker::class, static fn () => $httpWorker);
 $projectChannel           = channel(RIP_PROJECT_PATH);
 $includedFiles            = \get_included_files();
 $hotReload                = static function (string $file) use ($manager, $includedFiles, $projectChannel) {
-    if (!is_file($file)) {
+    if (!\is_file($file)) {
         return;
     }
 
@@ -177,4 +178,8 @@ try {
 /*** start */
 Output::info("[laravel-ripple]", 'started');
 $manager->run();
+repeat(static function () {
+    \gc_collect_cycles();
+    \Co\sleep(1);
+}, 1);
 wait();

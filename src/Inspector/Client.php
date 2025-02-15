@@ -26,12 +26,14 @@ use function cli_set_process_title;
 use function Co\async;
 use function Co\channel;
 use function Co\onSignal;
+use function Co\repeat;
 use function Co\wait;
 use function config_path;
 use function file_exists;
 use function shell_exec;
 use function sprintf;
 use function storage_path;
+use function gc_collect_cycles;
 
 use const PHP_BINARY;
 use const SIGINT;
@@ -163,6 +165,10 @@ class Client
         }
 
         cli_set_process_title('laravel-ware');
+        repeat(static function () {
+            gc_collect_cycles();
+            \Co\sleep(1);
+        }, 1);
         wait();
     }
 
