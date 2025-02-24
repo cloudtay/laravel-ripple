@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feature/*
   pull_request:
     branches:
       - main
@@ -38,6 +39,7 @@ jobs:
       # 安装 Composer 依赖
       - name: Install Laravel
         run: |
+          echo "GitHub Ref: ${{ github.ref }}"
           composer install
           composer create-project --prefer-dist laravel/laravel app "^11.0"
 
@@ -46,7 +48,9 @@ jobs:
         working-directory: app
         run: |
           composer config repositories.local-plugin path ../
-          composer require cloudtay/laravel-ripple:dev-main
+          composer clear-cache
+          composer config minimum-stability dev
+          composer require cloudtay/laravel-ripple:dev-${{ github.sha }}
           composer require laravel/octane
 
       # 初始化测试路由
