@@ -59,7 +59,7 @@ class ContextManager
      * @return mixed
      * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
-    public static function app(string $abstract = null, array $parameters = []): mixed
+    public static function app(?string $abstract = null, array $parameters = []): mixed
     {
         $container = ContextManager::current();
         if (is_null($abstract)) {

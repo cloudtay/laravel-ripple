@@ -75,7 +75,7 @@ if (RIP_HOOK) {
          * @return mixed
          * @throws \Illuminate\Contracts\Container\BindingResolutionException
          */
-        function app(string $abstract = null, array $parameters = []): mixed
+        function app(?string $abstract = null, array $parameters = []): mixed
         {
             return ContextManager::app($abstract, $parameters);
         }
