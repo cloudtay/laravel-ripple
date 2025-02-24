@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - feature/*
   pull_request:
     branches:
       - main
@@ -48,8 +47,9 @@ jobs:
       - name: Initialize ripple
         working-directory: app
         run: |
-          echo "PR_BRANCH_NAME: $PR_BRANCH_NAME"
-          if [ "$PR_BRANCH_NAME" = "main" ]; then
+          echo "DEBUG---github.ref_name: ${{ github.ref_name }}"
+          echo "DEBUG---PR_BRANCH_NAME: $PR_BRANCH_NAME"
+          if [ ${{ github.ref_name }} = "main" ]; then
             VERSION="dev-main"
           else
             VERSION="dev-${{ github.sha }}"
@@ -58,8 +58,6 @@ jobs:
           composer clear-cache
           composer config minimum-stability dev
           composer require cloudtay/laravel-ripple:$VERSION
-          composer require laravel/octane
-
       # 初始化测试路由
       - name: Initialize Test Route
         working-directory: app
