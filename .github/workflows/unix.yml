@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feature/*
   pull_request:
     branches:
       - main
@@ -56,6 +57,7 @@ jobs:
           composer clear-cache
           composer config minimum-stability dev
           composer require cloudtay/laravel-ripple:$VERSION
+
       # 初始化测试路由
       - name: Initialize Test Route
         working-directory: app
