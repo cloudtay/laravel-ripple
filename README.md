@@ -24,7 +24,7 @@ By using ripple, you will experience the advantages of managing tasks from a glo
 | Software | Version            |
 |----------|--------------------|
 | PHP      | `^8.1` - `latest`  |
-| Laravel  | `^11.0` - `latest` |
+| Laravel  | `^11.0`,`^12.0` - `latest` |
 
 ### Start learning
 
