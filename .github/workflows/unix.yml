@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - feature/*
   pull_request:
     branches:
       - main
@@ -46,8 +47,9 @@ jobs:
         working-directory: app
         run: |
           composer config repositories.local-plugin path ../
-          composer require cloudtay/laravel-ripple:dev-main
-
+          composer clear-cache
+          composer config minimum-stability dev
+          composer require cloudtay/laravel-ripple:dev-${{ github.sha }}
       # 初始化测试路由
       - name: Initialize Test Route
         working-directory: app
