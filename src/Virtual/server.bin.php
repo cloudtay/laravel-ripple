@@ -141,10 +141,11 @@ $hotReload                = static function (string $file) use ($manager, $inclu
         Output::writeln("[{$date}] {$file} has been modified");
     }
 };
+
 $hotReloadWatch           = Factory::createMonitor();
+$hotReloadWatch->onTouch = static fn () => \__rip_restart($projectChannel);
+$hotReloadWatch->onRemove = static fn () => \__rip_restart($projectChannel);
 $hotReloadWatch->onModify = $hotReload;
-$hotReloadWatch->onTouch  = $hotReload;
-$hotReloadWatch->onRemove = $hotReload;
 if (RIP_WATCH) {
     $hotReloadWatch->run();
 }

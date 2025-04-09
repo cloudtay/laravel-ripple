@@ -12,12 +12,17 @@
 
 namespace Laravel\Ripple\Built;
 
+use FilesystemIterator;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Config;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use Ripple\File\File;
 use Ripple\File\Monitor;
 
-use function base_path;
-use function file_exists;
+use function is_dir;
+use function array_shift;
+use function is_file;
 
 class Factory
 {
@@ -98,15 +103,41 @@ class Factory
      */
     public static function createMonitor(): Monitor
     {
-        $monitor = File::getInstance()->monitor();
-        $monitor->add(base_path('/app'));
-        $monitor->add(base_path('/bootstrap'));
-        $monitor->add(base_path('/config'));
-        $monitor->add(base_path('/routes'));
-        $monitor->add(base_path('/resources'));
-        if (file_exists(base_path('/.env'))) {
-            $monitor->add(base_path('/.env'));
+        $monitor    = File::getInstance()->monitor();
+        $watchPaths = Config::get('ripple.WATCH_PATHS', []);
+
+        $after = [];
+
+        foreach ($watchPaths as $path) {
+            if (is_file($path)) {
+                $monitor->add($path);
+            }
+
+            if (is_dir($path)) {
+                $iterator = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::SELF_FIRST
+                );
+
+                /*** @var \SplFileInfo $file */
+                foreach ($iterator as $file) {
+                    if ($file->isDir()) {
+                        $after[] = $file->getPathname();
+                    }
+
+                    if ($file->isFile()) {
+                        $monitor->add($file->getPathname());
+                    }
+                }
+
+                $after[] = $path;
+            }
+
+            while ($path = array_shift($after)) {
+                $monitor->add($path);
+            }
         }
+
         return $monitor;
     }
 }

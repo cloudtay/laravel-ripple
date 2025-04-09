@@ -17,4 +17,12 @@ return [
     'HTTP_LISTEN'  => Env::get('RIP_HTTP_LISTEN', 'http://127.0.0.1:8000'),
     'HTTP_WORKERS' => Env::get('RIP_HTTP_WORKERS', 1),
     'WATCH'        => Env::get('RIP_WATCH', 1),
+    'WATCH_PATHS' => [
+        \base_path('/app'),
+        \base_path('/bootstrap'),
+        \base_path('/config'),
+        \base_path('/routes'),
+        \base_path('/resources'),
+        \base_path('/.env')
+    ]
 ];
