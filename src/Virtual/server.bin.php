@@ -1,5 +1,5 @@
+#!/usr/bin/env php
 <?php declare(strict_types=1);
-
 /**
  * Copyright © 2024 cclilshy
  * Email: jingnigg@gmail.com
@@ -30,6 +30,7 @@ use Ripple\Worker\Manager;
 
 use function Co\async;
 use function Co\channel;
+use function Co\go;
 use function Co\onSignal;
 use function Co\repeat;
 use function Co\wait;
@@ -46,8 +47,26 @@ use function Co\wait;
 \define("RIP_HTTP_LISTEN", \strval(\getenv('RIP_HTTP_LISTEN')));
 \define("RIP_HOOK", \boolval(\getenv('RIP_HOOK')));
 
+final class Setup
+{
+    /**
+     * Reload 状态：
+     * idle    = 空闲
+     * running = 执行中
+     * pending = 等待再次执行
+     */
+    public const STATUS_IDLE    = 'idle';
+    public const STATUS_RUNNING = 'running';
+    public const STATUS_PENDING = 'pending';
+
+    /**
+     * @var string
+     */
+    public static string $reloadStatus = self::STATUS_IDLE;
+}
+
 /**
- * @param \Ripple\Channel\Channel $projectChannel
+ * @param Channel $projectChannel
  *
  * @return void
  */
@@ -57,13 +76,32 @@ function __rip_restart(Channel $projectChannel): void
 }
 
 /**
- * @param \Ripple\Worker\Manager $manager
+ * @param Manager $manager
  *
  * @return void
  */
 function __rip_reload(Manager $manager): void
 {
+    if (
+        Setup::$reloadStatus === Setup::STATUS_RUNNING ||
+        Setup::$reloadStatus === Setup::STATUS_PENDING
+    ) {
+        Setup::$reloadStatus = Setup::STATUS_PENDING;
+        return;
+    }
+
+    Setup::$reloadStatus = Setup::STATUS_RUNNING;
     $manager->reload();
+
+    go(function () use ($manager): void {
+        \Co\sleep(2);
+
+        if (Setup::$reloadStatus === Setup::STATUS_PENDING) {
+            \__rip_reload($manager);
+        } else {
+            Setup::$reloadStatus = Setup::STATUS_IDLE;
+        }
+    });
 }
 
 if (RIP_HOOK) {
@@ -73,7 +111,7 @@ if (RIP_HOOK) {
          * @param array       $parameters
          *
          * @return mixed
-         * @throws \Illuminate\Contracts\Container\BindingResolutionException
+         * @throws BindingResolutionException
          */
         function app(?string $abstract = null, array $parameters = []): mixed
         {
@@ -181,6 +219,5 @@ Output::info("[laravel-ripple]", 'started');
 $manager->run();
 repeat(static function () {
     \gc_collect_cycles();
-    \Co\sleep(1);
 }, 1);
 wait();

@@ -14,6 +14,7 @@ namespace Laravel\Ripple\Built\Coroutine;
 
 use Fiber;
 use Illuminate\Container\Container;
+use Illuminate\Contracts\Container\BindingResolutionException;
 
 use function is_null;
 use function spl_object_hash;
@@ -24,7 +25,7 @@ class ContainerMap
     private static array $applications = [];
 
     /**
-     * @param \Illuminate\Container\Container $application
+     * @param Container $application
      *
      * @return void
      */
@@ -52,7 +53,7 @@ class ContainerMap
      * @param array       $parameters
      *
      * @return mixed
-     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     * @throws BindingResolutionException
      */
     public static function app(?string $abstract = null, array $parameters = []): mixed
     {
@@ -65,7 +66,7 @@ class ContainerMap
     }
 
     /**
-     * @return \Illuminate\Container\Container
+     * @return Container
      */
     public static function current(): Container
     {

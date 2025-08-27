@@ -23,10 +23,10 @@ use Symfony\Component\HttpFoundation\Response;
 class RequestTerminated
 {
     /**
-     * @param \Illuminate\Foundation\Application         $app
-     * @param \Illuminate\Foundation\Application         $sandbox
-     * @param \Illuminate\Http\Request                   $request
-     * @param \Symfony\Component\HttpFoundation\Response $response
+     * @param Application $app
+     * @param Application $sandbox
+     * @param Request $request
+     * @param Response $response
      */
     public function __construct(public Application $app, public Application $sandbox, public Request $request, public Response $response)
     {

@@ -19,8 +19,8 @@ use Throwable;
 class WorkerErrorOccurred
 {
     /**
-     * @param \Illuminate\Foundation\Application $app
-     * @param \Illuminate\Foundation\Application $sandbox
+     * @param Application $app
+     * @param Application $sandbox
      * @param Throwable                          $exception
      */
     public function __construct(public Application $app, public Application $sandbox, public Throwable $exception)

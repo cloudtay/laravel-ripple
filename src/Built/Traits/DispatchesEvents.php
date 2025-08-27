@@ -20,7 +20,7 @@ trait DispatchesEvents
     /**
      * Dispatch the given event via the given application.
      *
-     * @param \Illuminate\Foundation\Application $app
+     * @param Application $app
      * @param mixed                              $event
      */
     public function dispatchEvent(Application $app, mixed $event): void

@@ -42,16 +42,16 @@ use const SIGTERM;
 
 class Client
 {
-    /*** @var \Laravel\Ripple\Inspector\Inspector */
+    /*** @var Inspector */
     public readonly Inspector $inspector;
 
-    /*** @var \Ripple\Channel\Channel */
+    /*** @var Channel */
     public readonly Channel $channel;
 
-    /*** @var \Ripple\File\Lock */
+    /*** @var Lock */
     public readonly Lock $lock;
 
-    /*** @var \Laravel\Ripple\Virtual\Virtual */
+    /*** @var Virtual */
     public Virtual $virtual;
 
     /*** @var bool */
@@ -105,7 +105,7 @@ class Client
     }
 
     /**
-     * @return \Laravel\Ripple\Virtual\Virtual
+     * @return Virtual
      */
     private function launchVirtual(): Virtual
     {
@@ -167,7 +167,6 @@ class Client
         cli_set_process_title('laravel-ware');
         repeat(static function () {
             gc_collect_cycles();
-            \Co\sleep(1);
         }, 1);
         wait();
     }

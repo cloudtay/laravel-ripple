@@ -19,6 +19,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Ripple\File\File;
 use Ripple\File\Monitor;
+use SplFileInfo;
 
 use function is_dir;
 use function array_shift;
@@ -27,7 +28,7 @@ use function is_file;
 class Factory
 {
     /**
-     * @return \Illuminate\Foundation\Application
+     * @return Application
      */
     public static function createApplication(): Application
     {
@@ -99,7 +100,7 @@ class Factory
     }
 
     /**
-     * @return \Ripple\File\Monitor
+     * @return Monitor
      */
     public static function createMonitor(): Monitor
     {
@@ -119,7 +120,7 @@ class Factory
                     RecursiveIteratorIterator::SELF_FIRST
                 );
 
-                /*** @var \SplFileInfo $file */
+                /*** @var SplFileInfo $file */
                 foreach ($iterator as $file) {
                     if ($file->isDir()) {
                         $after[] = $file->getPathname();
