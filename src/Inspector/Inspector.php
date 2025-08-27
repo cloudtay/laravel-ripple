@@ -25,6 +25,14 @@ class Inspector
     }
 
     /**
+     * @return bool
+     */
+    public function serverIsRunning(): bool
+    {
+        return $this->client->serverIsRunning();
+    }
+
+    /**
      * @return void
      */
     public function reloadServer(): void
@@ -35,18 +43,6 @@ class Inspector
 
         $channel = channel(base_path());
         $channel->send('reload');
-    }
-
-    /**
-     * @return bool
-     */
-    public function serverIsRunning(): bool
-    {
-        if ($locked = $this->client->lock->shareable(false)) {
-            $this->client->lock->unlock();
-        }
-
-        return $this->client->owner || !$locked;
     }
 
     /**

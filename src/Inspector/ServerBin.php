@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php declare(strict_types=1);
 /**
  * Copyright © 2024 cclilshy
@@ -11,9 +10,12 @@
  * Contributions, suggestions, and feedback are always welcome!
  */
 
+namespace Laravel\Ripple\Inspector;
+
 use Composer\InstalledVersions;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Console\Kernel;
+use JetBrains\PhpStorm\NoReturn;
 use Laravel\Octane\ApplicationFactory;
 use Laravel\Octane\RequestContext;
 use Laravel\Octane\Worker;
@@ -23,7 +25,6 @@ use Laravel\Ripple\HttpWorker;
 use Laravel\Ripple\Octane\RippleClient;
 use Laravel\Ripple\Util;
 use Revolt\EventLoop\UnsupportedFeatureException;
-use Ripple\Channel\Channel;
 use Ripple\Http\Server\Request;
 use Ripple\Utils\Output;
 use Ripple\Worker\Manager;
@@ -34,20 +35,36 @@ use function Co\go;
 use function Co\onSignal;
 use function Co\repeat;
 use function Co\wait;
+use function boolval;
+use function cli_set_process_title;
+use function date;
+use function define;
+use function function_exists;
+use function gc_collect_cycles;
+use function get_included_files;
+use function getenv;
+use function in_array;
+use function intval;
+use function is_file;
+use function realpath;
+use function strval;
+use function base_path;
 
-\cli_set_process_title('laravel-virtual');
-\define("RIP_PROJECT_PATH", \realpath(\getenv('RIP_PROJECT_PATH')));
-\define("RIP_VIRTUAL_ID", \getenv('RIP_VIRTUAL_ID'));
+use const SIGTERM;
 
-\define("RIP_HOST", \strval(\getenv('RIP_HOST')));
-\define("RIP_PORT", \intval(\getenv('RIP_PORT')));
-\define("RIP_WATCH", \boolval(\getenv('RIP_WATCH')));
+cli_set_process_title('laravel-virtual');
 
-\define("RIP_HTTP_WORKERS", \intval(\getenv('RIP_HTTP_WORKERS')));
-\define("RIP_HTTP_LISTEN", \strval(\getenv('RIP_HTTP_LISTEN')));
-\define("RIP_HOOK", \boolval(\getenv('RIP_HOOK')));
+define("RIP_PROJECT_PATH", realpath(getenv('RIP_PROJECT_PATH')));
 
-final class Setup
+define("RIP_HOST", strval(getenv('RIP_HOST')));
+define("RIP_PORT", intval(getenv('RIP_PORT')));
+define("RIP_WATCH", boolval(getenv('RIP_WATCH')));
+
+define("RIP_HTTP_WORKERS", intval(getenv('RIP_HTTP_WORKERS')));
+define("RIP_HTTP_LISTEN", strval(getenv('RIP_HTTP_LISTEN')));
+define("RIP_HOOK", boolval(getenv('RIP_HOOK')));
+
+final class ServerBin
 {
     /**
      * Reload 状态：
@@ -66,13 +83,16 @@ final class Setup
 }
 
 /**
- * @param Channel $projectChannel
+ * @param Manager $manager
  *
  * @return void
  */
-function __rip_restart(Channel $projectChannel): void
+#[NoReturn]
+function __rip_restart(Manager $manager): void
 {
-    $projectChannel->send('restart');
+    channel(base_path())->send('restart');
+    $manager->terminate();
+    exit(0);
 }
 
 /**
@@ -83,29 +103,29 @@ function __rip_restart(Channel $projectChannel): void
 function __rip_reload(Manager $manager): void
 {
     if (
-        Setup::$reloadStatus === Setup::STATUS_RUNNING ||
-        Setup::$reloadStatus === Setup::STATUS_PENDING
+        ServerBin::$reloadStatus === ServerBin::STATUS_RUNNING ||
+        ServerBin::$reloadStatus === ServerBin::STATUS_PENDING
     ) {
-        Setup::$reloadStatus = Setup::STATUS_PENDING;
+        ServerBin::$reloadStatus = ServerBin::STATUS_PENDING;
         return;
     }
 
-    Setup::$reloadStatus = Setup::STATUS_RUNNING;
+    ServerBin::$reloadStatus = ServerBin::STATUS_RUNNING;
     $manager->reload();
 
     go(function () use ($manager): void {
         \Co\sleep(2);
 
-        if (Setup::$reloadStatus === Setup::STATUS_PENDING) {
-            \__rip_reload($manager);
+        if (ServerBin::$reloadStatus === ServerBin::STATUS_PENDING) {
+            __rip_reload($manager);
         } else {
-            Setup::$reloadStatus = Setup::STATUS_IDLE;
+            ServerBin::$reloadStatus = ServerBin::STATUS_IDLE;
         }
     });
 }
 
 if (RIP_HOOK) {
-    if (!\function_exists('app')) {
+    if (!function_exists('app')) {
         /**
          * @param string|null $abstract
          * @param array       $parameters
@@ -121,7 +141,7 @@ if (RIP_HOOK) {
 }
 
 require RIP_PROJECT_PATH . '/vendor/autoload.php';
-\define('RIP_OCTANE', InstalledVersions::isInstalled('laravel/octane'));
+define('RIP_OCTANE', InstalledVersions::isInstalled('laravel/octane'));
 
 /*** Initialize the HTTP service */
 try {
@@ -162,27 +182,26 @@ $application->singleton(Manager::class, static fn () => $manager);
 $application->singleton(HttpWorker::class, static fn () => $httpWorker);
 
 /*** Hot reload part */
-$projectChannel           = channel(RIP_PROJECT_PATH);
-$includedFiles            = \get_included_files();
-$hotReload                = static function (string $file) use ($manager, $includedFiles, $projectChannel) {
-    if (!\is_file($file)) {
+$includedFiles            = get_included_files();
+$hotReload                = static function (string $file) use ($manager, $includedFiles) {
+    if (!is_file($file)) {
         return;
     }
 
-    if (\in_array($file, $includedFiles, true)) {
-        \__rip_restart($projectChannel);
+    if (in_array($file, $includedFiles, true)) {
+        __rip_restart($manager);
     } else {
-        \__rip_reload($manager);
+        __rip_reload($manager);
 
-        $date = \date('Y-m-d H:i:s');
+        $date = date('Y-m-d H:i:s');
         $file = Util::getRelativePath($file, RIP_PROJECT_PATH);
         Output::writeln("[{$date}] {$file} has been modified");
     }
 };
 
 $hotReloadWatch           = Factory::createMonitor();
-$hotReloadWatch->onTouch = static fn () => \__rip_restart($projectChannel);
-$hotReloadWatch->onRemove = static fn () => \__rip_restart($projectChannel);
+$hotReloadWatch->onTouch = static fn () => __rip_restart($manager);
+$hotReloadWatch->onRemove = static fn () => __rip_restart($manager);
 $hotReloadWatch->onModify = $hotReload;
 if (RIP_WATCH) {
     $hotReloadWatch->run();
@@ -190,11 +209,11 @@ if (RIP_WATCH) {
 
 /*** Guardian part */
 async(static function () use ($manager) {
-    $channel = channel(RIP_VIRTUAL_ID, true);
+    $channel = channel(base_path('bin'));
     while (1) {
         $control = $channel->receive();
         if ($control === 'reload') {
-            \__rip_reload($manager);
+            __rip_reload($manager);
         }
 
         if ($control === 'stop') {
@@ -205,7 +224,7 @@ async(static function () use ($manager) {
 });
 
 try {
-    onSignal(\SIGTERM, static function () use ($manager) {
+    onSignal(SIGTERM, static function () use ($manager) {
         $manager->terminate();
         exit(0);
     });
@@ -218,6 +237,6 @@ try {
 Output::info("[laravel-ripple]", 'started');
 $manager->run();
 repeat(static function () {
-    \gc_collect_cycles();
+    gc_collect_cycles();
 }, 1);
 wait();
