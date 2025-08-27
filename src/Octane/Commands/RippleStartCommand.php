@@ -58,7 +58,7 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
     protected $hidden = true;
 
     /**
-     * @param \Laravel\Ripple\Octane\RippleServerProcessInspector $inspector
+     * @param RippleServerProcessInspector $inspector
      *
      * @return int
      */
@@ -108,7 +108,7 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
     }
 
     /**
-     * @param \Symfony\Component\Process\Process $server
+     * @param Process $server
      *
      * @return void
      */

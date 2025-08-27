@@ -30,7 +30,7 @@ use function fopen;
 class RippleClient implements Client
 {
     /**
-     * @param \Laravel\Octane\RequestContext $context
+     * @param RequestContext $context
      *
      * @return array
      */
@@ -55,8 +55,8 @@ class RippleClient implements Client
     }
 
     /**
-     * @param \Laravel\Octane\RequestContext $context
-     * @param \Laravel\Octane\OctaneResponse $response
+     * @param RequestContext $context
+     * @param OctaneResponse $response
      *
      * @return void
      */
@@ -87,10 +87,10 @@ class RippleClient implements Client
     }
 
     /**
-     * @param Throwable                          $e
-     * @param \Illuminate\Foundation\Application $app
-     * @param \Illuminate\Http\Request           $request
-     * @param \Laravel\Octane\RequestContext     $context
+     * @param Throwable $e
+     * @param Application $app
+     * @param Request $request
+     * @param RequestContext $context
      *
      * @return void
      */

@@ -53,7 +53,7 @@ class Command extends \Illuminate\Console\Command
     /**
      * 运行服务
      *
-     * @param \Laravel\Ripple\Inspector\Client $client
+     * @param Client $client
      *
      * @return void
      */

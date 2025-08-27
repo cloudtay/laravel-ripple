@@ -23,6 +23,7 @@ use Laravel\Ripple\Built\Events\WorkerErrorOccurred;
 use Laravel\Ripple\Built\Factory;
 use Laravel\Ripple\Built\Response\IteratorResponse;
 use Laravel\Ripple\Built\Traits\DispatchesEvents;
+use ReflectionException;
 use Ripple\Http\Server;
 use Ripple\Http\Server\Request;
 use Ripple\Stream\Exception\ConnectionException;
@@ -46,11 +47,11 @@ class HttpWorker extends Worker
     /*** @var Server */
     protected Server $server;
 
-    /*** @var \Closure */
+    /*** @var Closure */
     protected Closure $customHandler;
 
     /**
-     * @param \Illuminate\Foundation\Application $application
+     * @param Application $application
      * @param string                             $address
      * @param int                                $count
      * @param bool                               $reload
@@ -125,9 +126,10 @@ class HttpWorker extends Worker
     }
 
     /**
-     * @param \Ripple\Http\Server\Request $request
+     * @param Request $request
      *
      * @return void
+     * @throws ReflectionException
      */
     protected function onRequest(Request $request): void
     {

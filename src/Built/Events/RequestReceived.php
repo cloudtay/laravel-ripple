@@ -30,9 +30,9 @@ class RequestReceived
     ];
 
     /**
-     * @param \Illuminate\Foundation\Application $app
-     * @param \Illuminate\Foundation\Application $sandbox
-     * @param \Illuminate\Http\Request           $request
+     * @param Application $app
+     * @param Application $sandbox
+     * @param Request $request
      */
     public function __construct(public Application $app, public Application $sandbox, public Request $request)
     {

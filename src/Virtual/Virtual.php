@@ -29,7 +29,7 @@ class Virtual
     /*** @var string */
     public string $id;
 
-    /*** @var \Ripple\Channel\Channel */
+    /*** @var Channel */
     public Channel $channel;
 
     /*** @var Session */
@@ -48,7 +48,7 @@ class Virtual
     /**
      * @param array $envs
      *
-     * @return \Ripple\Proc\Session|false
+     * @return Session|false
      */
     public function launch(array $envs = []): Session|false
     {

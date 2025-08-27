@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class IteratorResponse extends Response
 {
-    /*** @var \Iterator */
+    /*** @var Iterator */
     private Iterator $asyncContent;
 
     /**

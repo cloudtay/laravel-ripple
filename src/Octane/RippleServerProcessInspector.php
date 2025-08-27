@@ -21,7 +21,7 @@ use Laravel\Ripple\Inspector\Client;
 class RippleServerProcessInspector implements ServerProcessInspectorContract
 {
     /**
-     * @param \Laravel\Ripple\Inspector\Client $client
+     * @param Client $client
      */
     public function __construct(protected readonly Client $client)
     {
