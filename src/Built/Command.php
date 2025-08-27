@@ -13,6 +13,7 @@
 namespace Laravel\Ripple\Built;
 
 use Laravel\Ripple\Inspector\Client;
+use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Utils\Output;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -56,18 +57,13 @@ class Command extends \Illuminate\Console\Command
      * @param Client $client
      *
      * @return void
+     * @throws UnsupportedFeatureException
      */
     public function handle(Client $client): void
     {
-        if (!$client->isInstalled()) {
-            Output::warning('Please execute the following command to publish the configuration files first.');
-            Output::writeln('php artisan vendor:publish --tag=ripple-config');
-            return;
-        }
-
         switch ($this->argument('action')) {
             case 'start':
-                if ($client->inspector->serverIsRunning()) {
+                if ($client->serverIsRunning()) {
                     Output::warning('the server is already running');
                     return;
                 }
@@ -76,7 +72,7 @@ class Command extends \Illuminate\Console\Command
                 break;
 
             case 'stop':
-                if (!$client->inspector->serverIsRunning()) {
+                if (!$client->serverIsRunning()) {
                     Output::warning('the server is not running');
                     return;
                 }
@@ -84,7 +80,7 @@ class Command extends \Illuminate\Console\Command
                 break;
 
             case 'reload':
-                if (!$client->inspector->serverIsRunning()) {
+                if (!$client->serverIsRunning()) {
                     Output::warning('the server is not running');
                     return;
                 }
@@ -92,7 +88,7 @@ class Command extends \Illuminate\Console\Command
                 break;
 
             case 'restart':
-                if (!$client->inspector->serverIsRunning()) {
+                if (!$client->serverIsRunning()) {
                     Output::warning('the server is not running');
                     return;
                 }
@@ -100,7 +96,7 @@ class Command extends \Illuminate\Console\Command
                 break;
 
             case 'status':
-                if (!$client->inspector->serverIsRunning()) {
+                if (!$client->serverIsRunning()) {
                     Output::writeln('the server is not running');
                 } else {
                     Output::info('the server is running');
