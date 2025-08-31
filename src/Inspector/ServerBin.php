@@ -29,8 +29,6 @@ use Ripple\Http\Server\Request;
 use Ripple\Utils\Output;
 use Ripple\Worker\Manager;
 
-use function Co\async;
-use function Co\channel;
 use function Co\go;
 use function Co\onSignal;
 use function Co\repeat;
@@ -48,11 +46,10 @@ use function intval;
 use function is_file;
 use function realpath;
 use function strval;
-use function base_path;
 
 use const SIGTERM;
 
-cli_set_process_title('laravel-virtual');
+cli_set_process_title('ripple-laravel-virtual');
 
 define("RIP_PROJECT_PATH", realpath(getenv('RIP_PROJECT_PATH')));
 
@@ -83,15 +80,11 @@ final class ServerBin
 }
 
 /**
- * @param Manager $manager
- *
  * @return void
  */
 #[NoReturn]
-function __rip_restart(Manager $manager): void
+function __rip_restart(): void
 {
-    channel(base_path())->send('restart');
-    $manager->terminate();
     exit(0);
 }
 
@@ -189,7 +182,7 @@ $hotReload                = static function (string $file) use ($manager, $inclu
     }
 
     if (in_array($file, $includedFiles, true)) {
-        __rip_restart($manager);
+        __rip_restart();
     } else {
         __rip_reload($manager);
 
@@ -200,28 +193,12 @@ $hotReload                = static function (string $file) use ($manager, $inclu
 };
 
 $hotReloadWatch           = Factory::createMonitor();
-$hotReloadWatch->onTouch = static fn () => __rip_restart($manager);
-$hotReloadWatch->onRemove = static fn () => __rip_restart($manager);
+$hotReloadWatch->onTouch = static fn () => __rip_restart();
+$hotReloadWatch->onRemove = static fn () => __rip_restart();
 $hotReloadWatch->onModify = $hotReload;
 if (RIP_WATCH) {
     $hotReloadWatch->run();
 }
-
-/*** Guardian part */
-async(static function () use ($manager) {
-    $channel = channel(base_path('bin'));
-    while (1) {
-        $control = $channel->receive();
-        if ($control === 'reload') {
-            __rip_reload($manager);
-        }
-
-        if ($control === 'stop') {
-            $manager->terminate();
-            exit(0);
-        }
-    }
-});
 
 try {
     onSignal(SIGTERM, static function () use ($manager) {
