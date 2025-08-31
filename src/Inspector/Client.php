@@ -106,7 +106,7 @@ class Client
         $this->channel = channel(base_path(), true);
 
         $this->monitor();
-        $this->restartProcess();
+        $this->startProcess();
         wait();
     }
 
@@ -123,7 +123,7 @@ class Client
     /**
      * @return void
      */
-    protected function restartProcess(): void
+    protected function startProcess(): void
     {
         if (isset($this->guardCoroutine)) {
             $this->guardCoroutine->terminate();
@@ -154,7 +154,7 @@ class Client
             while (1) {
                 \Co\sleep(1);
                 if (!$this->runtime->isRunning()) {
-                    go(fn () => $this->restartProcess());
+                    go(fn () => $this->startProcess());
                 }
             }
         });
