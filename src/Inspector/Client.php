@@ -18,7 +18,6 @@ use JetBrains\PhpStorm\NoReturn;
 use Revolt\EventLoop\UnsupportedFeatureException;
 use Ripple\Channel\Channel;
 use Ripple\Coroutine\Context;
-use Ripple\File\File;
 use Ripple\File\Lock;
 use Ripple\Process\Runtime;
 use Ripple\Utils\Output;
@@ -35,16 +34,13 @@ use function Co\repeat;
 use function Co\wait;
 use function config_path;
 use function file_exists;
-use function file_put_contents;
 use function gc_collect_cycles;
-use function putenv;
+use function pcntl_exec;
 use function shell_exec;
 use function sprintf;
 use function storage_path;
-use function strlen;
 
 use const PHP_BINARY;
-use const SEEK_CUR;
 use const SIGINT;
 use const SIGQUIT;
 use const SIGTERM;
@@ -108,7 +104,6 @@ class Client
         }
 
         $this->channel = channel(base_path(), true);
-        $this->binChannel = channel(base_path('bin'), true);
 
         $this->monitor();
         $this->restartProcess();
@@ -119,11 +114,6 @@ class Client
      * @var Runtime
      */
     protected Runtime $runtime;
-
-    /**
-     * @var Channel
-     */
-    protected Channel $binChannel;
 
     /**
      * @var Context
@@ -140,17 +130,10 @@ class Client
         }
 
         if (isset($this->runtime)) {
-            try {
-                $this->runtime->await();
-            } catch (Throwable $e) {
-                throw new RuntimeException('the service cannot be stopped');
-            }
+            $this->runtime->terminate();
         }
 
-        $logPath = storage_path('/logs/ripple-running.log');
-        file_put_contents($logPath, '');
-
-        $runtime = process(function () use ($logPath) {
+        $runtime = process(function () {
             $envs = [
                 'RIP_PROJECT_PATH' => base_path(),
                 'RIP_HTTP_LISTEN' => Config::get('ripple.HTTP_LISTEN'),
@@ -159,17 +142,7 @@ class Client
                 'RIP_HOOK' => InstalledVersions::isInstalled('laravel/octane') ? 0 : 1,
             ];
 
-            foreach ($envs as $name => $env) {
-                putenv("{$name}={$env}");
-            }
-
-            $command = sprintf(
-                '%s %s/ServerBin.php >> %s',
-                PHP_BINARY,
-                __DIR__,
-                $logPath
-            );
-            shell_exec($command);
+            pcntl_exec(PHP_BINARY, [sprintf('%s/%s', __DIR__, 'ServerBin.php')], $envs);
         })->run();
 
         if (!$runtime) {
@@ -177,14 +150,9 @@ class Client
         }
 
         $this->runtime = $runtime;
-        $this->guardCoroutine = go(function () use ($logPath, $runtime) {
-            $logStream = File::open($logPath, 'r');
+        $this->guardCoroutine = go(function () use ($runtime) {
             while (1) {
-                $output = $logStream->read(1024);
-                $logStream->seek(strlen($output), SEEK_CUR);
-                Output::write($output);
                 \Co\sleep(1);
-
                 if (!$this->runtime->isRunning()) {
                     go(fn () => $this->restartProcess());
                 }
@@ -232,11 +200,11 @@ class Client
             onSignal(SIGQUIT, function () {
                 $this->stop();
             });
-        } catch (UnsupportedFeatureException $e) {
+        } catch (UnsupportedFeatureException) {
             Output::warning('Failed to register signal handler');
         }
 
-        cli_set_process_title('laravel-ware');
+        cli_set_process_title('ripple-laravel-ware');
         repeat(static function () {
             gc_collect_cycles();
         }, 1);
@@ -252,7 +220,10 @@ class Client
             $this->guardCoroutine->terminate();
         }
 
-        $this->binChannel->send('stop');
+        if (isset($this->runtime)) {
+            $this->runtime->terminate();
+        }
+
         exit(0);
     }
 
@@ -261,7 +232,9 @@ class Client
      */
     public function reload(): void
     {
-        $this->binChannel->send('reload');
+        if (isset($this->runtime)) {
+            $this->runtime->terminate();
+        }
     }
 
     /**
@@ -271,8 +244,7 @@ class Client
     public function restart(): void
     {
         if (isset($this->runtime)) {
-            $this->binChannel->send('stop');
-            $this->restartProcess();
+            $this->runtime->terminate();
         }
     }
 
