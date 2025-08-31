@@ -98,7 +98,8 @@ class HttpWorker extends Worker
      */
     public function boot(): void
     {
-        cli_set_process_title('laravel-worker.http');
+        $processName = $this->application->make('config')->get('ripple.PROCESS_NAMES.HTTP_WORKER', 'laravel-worker.http');
+        cli_set_process_title($processName);
         $this->application->singleton('rippleHttpWorker', fn () => $this);
         $this->application->singleton('httpWorker', fn () => $this);
         $this->application->singleton(HttpWorker::class, fn () => $this);

@@ -52,7 +52,7 @@ use function base_path;
 
 use const SIGTERM;
 
-cli_set_process_title('laravel-virtual');
+// Process title will be set after config is loaded
 
 define("RIP_PROJECT_PATH", realpath(getenv('RIP_PROJECT_PATH')));
 
@@ -180,6 +180,10 @@ try {
 /*** Register a singleton of Ripple service */
 $application->singleton(Manager::class, static fn () => $manager);
 $application->singleton(HttpWorker::class, static fn () => $httpWorker);
+
+/*** Set custom process title */
+$processName = $application->make('config')->get('ripple.PROCESS_NAMES.VIRTUAL', 'laravel-virtual');
+cli_set_process_title($processName);
 
 /*** Hot reload part */
 $includedFiles            = get_included_files();

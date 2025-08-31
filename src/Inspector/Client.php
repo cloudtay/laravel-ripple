@@ -236,7 +236,7 @@ class Client
             Output::warning('Failed to register signal handler');
         }
 
-        cli_set_process_title('laravel-ware');
+        cli_set_process_title(Config::get('ripple.PROCESS_NAMES.MONITOR', 'laravel-ware'));
         repeat(static function () {
             gc_collect_cycles();
         }, 1);

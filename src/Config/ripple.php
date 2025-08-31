@@ -24,5 +24,10 @@ return [
         \base_path('/routes'),
         \base_path('/resources'),
         \base_path('/.env')
+    ],
+    'PROCESS_NAMES' => [
+        'MONITOR'  => Env::get('RIP_PROCESS_NAME_MONITOR', 'laravel-ware'),
+        'VIRTUAL'  => Env::get('RIP_PROCESS_NAME_VIRTUAL', 'laravel-virtual'),
+        'HTTP_WORKER' => Env::get('RIP_PROCESS_NAME_HTTP_WORKER', 'laravel-worker.http'),
     ]
 ];
