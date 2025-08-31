@@ -157,6 +157,7 @@ class Client
                 'RIP_HTTP_WORKERS' => Config::get('ripple.HTTP_WORKERS'),
                 'RIP_WATCH' => Config::get('ripple.WATCH'),
                 'RIP_HOOK' => InstalledVersions::isInstalled('laravel/octane') ? 0 : 1,
+                'RIP_SHELL_PROCESS_NAME' => Config::get('ripple.PROCESS_NAMES.SERVER_BIN', ''),
             ];
 
             foreach ($envs as $name => $env) {

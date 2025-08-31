@@ -29,5 +29,6 @@ return [
         'MONITOR'  => Env::get('RIP_PROCESS_NAME_MONITOR', 'laravel-ware'),
         'VIRTUAL'  => Env::get('RIP_PROCESS_NAME_VIRTUAL', 'laravel-virtual'),
         'HTTP_WORKER' => Env::get('RIP_PROCESS_NAME_HTTP_WORKER', 'laravel-worker.http'),
+        'SERVER_BIN' => Env::get('RIP_PROCESS_NAME_SERVER_BIN', 'laravel-ripple-server'),
     ]
 ];

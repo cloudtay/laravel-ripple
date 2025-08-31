@@ -52,9 +52,14 @@ use function base_path;
 
 use const SIGTERM;
 
-// Process title will be set after config is loaded
-
 define("RIP_PROJECT_PATH", realpath(getenv('RIP_PROJECT_PATH')));
+
+// Set custom shell process name if available
+if ($customName = getenv('RIP_SHELL_PROCESS_NAME')) {
+    if (function_exists('cli_set_process_title')) {
+        cli_set_process_title($customName);
+    }
+}
 
 define("RIP_HOST", strval(getenv('RIP_HOST')));
 define("RIP_PORT", intval(getenv('RIP_PORT')));
