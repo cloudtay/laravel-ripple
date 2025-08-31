@@ -182,7 +182,7 @@ $hotReload                = static function (string $file) use ($manager, $inclu
     }
 
     if (in_array($file, $includedFiles, true)) {
-        __rip_restart($manager);
+        __rip_restart();
     } else {
         __rip_reload($manager);
 
@@ -193,8 +193,8 @@ $hotReload                = static function (string $file) use ($manager, $inclu
 };
 
 $hotReloadWatch           = Factory::createMonitor();
-$hotReloadWatch->onTouch = static fn () => __rip_restart($manager);
-$hotReloadWatch->onRemove = static fn () => __rip_restart($manager);
+$hotReloadWatch->onTouch = static fn () => __rip_restart();
+$hotReloadWatch->onRemove = static fn () => __rip_restart();
 $hotReloadWatch->onModify = $hotReload;
 if (RIP_WATCH) {
     $hotReloadWatch->run();
