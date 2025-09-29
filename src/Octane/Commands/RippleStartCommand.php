@@ -16,7 +16,7 @@ use Laravel\Octane\Commands\Command;
 use Laravel\Octane\Commands\Concerns\InteractsWithEnvironmentVariables;
 use Laravel\Octane\Commands\Concerns\InteractsWithServers;
 use Laravel\Ripple\Octane\RippleServerProcessInspector;
-use Ripple\Utils\Output;
+use Ripple\Runtime\Support\Stdin;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Process\Process;
 
@@ -31,7 +31,6 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
 
     /**
      * The command's signature.
-     *
      * @var string
      */
     public $signature = 'octane:ripple
@@ -45,14 +44,12 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
 
     /**
      * The command's description.
-     *
      * @var string
      */
     public $description = 'Start the Octane Ripple server';
 
     /**
      * Indicates whether the command should be shown in the Artisan command list.
-     *
      * @var bool
      */
     protected $hidden = true;
@@ -86,13 +83,13 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
             ],
             cwd: base_path(),
             env: [
-                'RIP_PROJECT_PATH'     => base_path(),
+                'RIP_PROJECT_PATH' => base_path(),
                 'RIP_BIN_WORKING_PATH' => base_path(),
-                'APP_BASE_PATH'        => base_path(),
-                'RIP_HOST'             => $this->getHost(),
-                'RIP_PORT'             => $this->getPort(),
-                'RIP_WORKERS'          => $workers,
-                'RIP_WATCH'            => $watch ?? 0
+                'APP_BASE_PATH' => base_path(),
+                'RIP_HOST' => $this->getHost(),
+                'RIP_PORT' => $this->getPort(),
+                'RIP_WORKERS' => $workers,
+                'RIP_WATCH' => $watch ?? 0
             ]
         );
         $process->start();
@@ -109,7 +106,6 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
 
     /**
      * @param Process $server
-     *
      * @return void
      */
     protected function writeServerOutput(Process $server): void
@@ -120,7 +116,7 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
         }
 
         if ($errorOutput) {
-            Output::error($errorOutput);
+            Stdin::println($errorOutput);
         }
     }
 }

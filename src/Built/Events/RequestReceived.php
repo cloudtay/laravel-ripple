@@ -19,7 +19,7 @@ use Laravel\Ripple\Built\Coroutine\ContextManager;
 use Laravel\Ripple\Built\Listeners\FlushAuthenticationState;
 use Laravel\Ripple\Built\Listeners\FlushQueuedCookies;
 use Laravel\Ripple\Built\Listeners\FlushSessionState;
-use Ripple\Utils\Output;
+use Ripple\Runtime\Support\Stdin;
 
 class RequestReceived
 {
@@ -40,7 +40,7 @@ class RequestReceived
             try {
                 $app->make($listener)->handle($this);
             } catch (BindingResolutionException $e) {
-                Output::warning($e->getMessage());
+                Stdin::println($e->getMessage());
             }
         }
 

@@ -13,8 +13,7 @@
 namespace Laravel\Ripple\Built;
 
 use Laravel\Ripple\Inspector\Client;
-use Revolt\EventLoop\UnsupportedFeatureException;
-use Ripple\Utils\Output;
+use Ripple\Runtime\Support\Stdin;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -41,7 +40,7 @@ class Command extends \Illuminate\Console\Command
     protected $description = 'start the ripple service';
 
     /**
-     * @param InputInterface  $input
+     * @param InputInterface $input
      * @param OutputInterface $output
      *
      * @return void
@@ -57,23 +56,22 @@ class Command extends \Illuminate\Console\Command
      * @param Client $client
      *
      * @return void
-     * @throws UnsupportedFeatureException
      */
     public function handle(Client $client): void
     {
         switch ($this->argument('action')) {
             case 'start':
                 if ($client->serverIsRunning()) {
-                    Output::warning('the server is already running');
+                    Stdin::println('the server is already running');
                     return;
                 }
                 $client->start($this->option('daemon'));
-                Output::writeln('server started');
+                Stdin::println('server started');
                 break;
 
             case 'stop':
                 if (!$client->serverIsRunning()) {
-                    Output::warning('the server is not running');
+                    Stdin::println('the server is not running');
                     return;
                 }
                 $client->inspector->stopServer();
@@ -81,7 +79,7 @@ class Command extends \Illuminate\Console\Command
 
             case 'reload':
                 if (!$client->serverIsRunning()) {
-                    Output::warning('the server is not running');
+                    Stdin::println('the server is not running');
                     return;
                 }
                 $client->inspector->reloadServer();
@@ -89,7 +87,7 @@ class Command extends \Illuminate\Console\Command
 
             case 'restart':
                 if (!$client->serverIsRunning()) {
-                    Output::warning('the server is not running');
+                    Stdin::println('the server is not running');
                     return;
                 }
                 $client->inspector->restartServer();
@@ -97,14 +95,14 @@ class Command extends \Illuminate\Console\Command
 
             case 'status':
                 if (!$client->serverIsRunning()) {
-                    Output::writeln('the server is not running');
+                    Stdin::println('the server is not running');
                 } else {
-                    Output::info('the server is running');
+                    Stdin::println('the server is running');
                 }
                 break;
 
             default:
-                Output::warning('Unsupported operation');
+                Stdin::println('Unsupported operation');
         }
     }
 }

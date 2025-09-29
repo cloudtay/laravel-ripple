@@ -43,7 +43,7 @@ class Util
             if (str_starts_with($path1, $path2)) {
                 return substr($path1, strlen($path2) + 1);
             }
-        } catch (Throwable $e) {
+        } catch (Throwable) {
             return '';
         }
 
