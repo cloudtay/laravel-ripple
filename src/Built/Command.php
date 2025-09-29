@@ -25,7 +25,6 @@ class Command extends \Illuminate\Console\Command
 {
     /**
      * the name and signature of the console command.
-     *
      * @var string
      */
     protected $signature = 'ripple:server
@@ -42,7 +41,6 @@ class Command extends \Illuminate\Console\Command
     /**
      * @param InputInterface $input
      * @param OutputInterface $output
-     *
      * @return void
      */
     public function initialize(InputInterface $input, OutputInterface $output): void
@@ -52,9 +50,7 @@ class Command extends \Illuminate\Console\Command
 
     /**
      * 运行服务
-     *
      * @param Client $client
-     *
      * @return void
      */
     public function handle(Client $client): void

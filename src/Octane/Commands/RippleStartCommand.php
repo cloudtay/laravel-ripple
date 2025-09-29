@@ -56,7 +56,6 @@ class RippleStartCommand extends Command implements SignalableCommandInterface
 
     /**
      * @param RippleServerProcessInspector $inspector
-     *
      * @return int
      */
     public function handle(RippleServerProcessInspector $inspector): int

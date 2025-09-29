@@ -89,7 +89,6 @@ class Client
 
     /**
      * @param bool $daemon
-     *
      * @return void
      * @throws RuntimeException
      */

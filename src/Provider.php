@@ -24,7 +24,6 @@ class Provider extends ServiceProvider
 {
     /**
      * Register any application services.
-     *
      * @return void
      */
     public function register(): void
@@ -32,8 +31,9 @@ class Provider extends ServiceProvider
         $this->commands([Command::class]);
         if (InstalledVersions::isInstalled('laravel/octane')) {
             $this->app->register(RippleProvider::class);
-            $this->app->register(RippleDatabaseProvider::class);
         }
+
+        $this->app->register(RippleDatabaseProvider::class);
     }
 
     /**

@@ -23,21 +23,18 @@ class RippleStatusCommand extends StatusCommand
 {
     /**
      * The command's signature.
-     *
      * @var string
      */
     public $signature = 'octane:status@ripple';
 
     /**
      * The command's description.
-     *
      * @var string
      */
     public $description = 'Stop the Octane server';
 
     /**
      * Handle the command.
-     *
      * @return int
      */
     public function handle(): int

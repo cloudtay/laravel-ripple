@@ -23,21 +23,18 @@ class RippleStopCommand extends StopCommand
 {
     /**
      * The command's signature.
-     *
      * @var string
      */
     public $signature = 'octane:stop@ripple';
 
     /**
      * The command's description.
-     *
      * @var string
      */
     public $description = 'Stop the Octane server';
 
     /**
      * Handle the command.
-     *
      * @return int
      */
     public function handle(): int

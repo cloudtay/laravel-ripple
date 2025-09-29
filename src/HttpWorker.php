@@ -70,7 +70,6 @@ class HttpWorker extends Worker
     /**
      * @Author cclilshy
      * @Date   2024/8/16 23:34
-     *
      * @return void
      */
     public function register(): void
@@ -125,7 +124,6 @@ class HttpWorker extends Worker
 
     /**
      * @param Request $request
-     *
      * @return void
      * @throws ReflectionException
      * @throws ConnectionException
@@ -204,7 +202,6 @@ class HttpWorker extends Worker
 
     /**
      * @param Closure $handler
-     *
      * @return void
      */
     public function customHandler(Closure $handler): void

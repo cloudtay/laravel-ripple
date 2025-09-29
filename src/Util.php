@@ -27,7 +27,6 @@ class Util
     /**
      * @param $path1
      * @param $path2
-     *
      * @return string
      */
     public static function getRelativePath($path1, $path2): string

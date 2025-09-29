@@ -31,7 +31,6 @@ class RippleClient implements Client
 {
     /**
      * @param RequestContext $context
-     *
      * @return array
      */
     public function marshalRequest(RequestContext $context): array
@@ -57,7 +56,6 @@ class RippleClient implements Client
     /**
      * @param RequestContext $context
      * @param OctaneResponse $response
-     *
      * @return void
      */
     public function respond(RequestContext $context, OctaneResponse $response): void
@@ -91,7 +89,6 @@ class RippleClient implements Client
      * @param Application $app
      * @param Request $request
      * @param RequestContext $context
-     *
      * @return void
      */
     public function error(Throwable $e, Application $app, Request $request, RequestContext $context): void
