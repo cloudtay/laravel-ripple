@@ -15,70 +15,88 @@ namespace Laravel\Ripple\Inspector;
 use Composer\InstalledVersions;
 use Illuminate\Support\Facades\Config;
 use JetBrains\PhpStorm\NoReturn;
-use Revolt\EventLoop\UnsupportedFeatureException;
-use Ripple\Channel\Channel;
-use Ripple\Coroutine\Context;
-use Ripple\File\Lock;
-use Ripple\Process\Runtime;
-use Ripple\Utils\Output;
+use Ripple\Coroutine;
+use Ripple\Event;
+use Ripple\Process;
+use Ripple\Runtime\Scheduler;
+use Ripple\Runtime\Support\Stdin;
+use Ripple\Serial\Zx7e;
+use Ripple\Stream;
 use RuntimeException;
 use Throwable;
 
 use function base_path;
 use function cli_set_process_title;
-use function Co\channel;
 use function Co\go;
-use function Co\onSignal;
-use function Co\process;
-use function Co\repeat;
 use function Co\wait;
 use function config_path;
 use function file_exists;
-use function gc_collect_cycles;
 use function pcntl_exec;
 use function shell_exec;
 use function sprintf;
 use function storage_path;
+use function fopen;
+use function flock;
+use function unlink;
+use function posix_mkfifo;
+use function stream_set_blocking;
 
 use const PHP_BINARY;
 use const SIGINT;
 use const SIGQUIT;
 use const SIGTERM;
+use const LOCK_EX;
+use const LOCK_NB;
+use const LOCK_SH;
+use const LOCK_UN;
 
 class Client
 {
-    /*** @var Inspector */
+    /**
+     * @var Inspector
+     */
     public readonly Inspector $inspector;
 
-    /*** @var Channel */
-    public readonly Channel $channel;
-
-    /*** @var Lock */
-    public readonly Lock $lock;
-
-    /*** @var bool */
+    /**
+     * @var bool
+     */
     public bool $owner = false;
+
+    /**
+     * @var mixed
+     */
+    private mixed $lock;
+
+    /**
+     * @var Stream
+     */
+    private Stream $channel;
+
+    /**
+     * @var string
+     */
+    public readonly string $channelPath;
 
     /**
      *
      */
     public function __construct()
     {
-        $this->lock = \Co\lock(base_path());
+        $this->lock = fopen(__FILE__, 'c');
         $this->inspector = new Inspector($this);
+        $this->channelPath = storage_path('ripple-channel.fifo');
     }
 
     /**
      * @param bool $daemon
-     *
      * @return void
-     * @throws UnsupportedFeatureException
+     * @throws RuntimeException
      */
     public function start(bool $daemon = false): void
     {
         if (!file_exists(config_path('ripple.php'))) {
-            Output::warning('Please execute the following command to publish the configuration files first.');
-            Output::writeln('php artisan vendor:publish --tag=ripple-config');
+            Stdin::println('Please execute the following command to publish the configuration files first.');
+            Stdin::println('php artisan vendor:publish --tag=ripple-config');
             return;
         }
 
@@ -87,7 +105,8 @@ class Client
         }
 
         if ($daemon) {
-            $this->lock->unlock();
+            // 释放锁并在子进程中后台运行
+            flock($this->lock, LOCK_UN);
             $command = sprintf(
                 '%s %s ripple:server start > %s &',
                 PHP_BINARY,
@@ -99,11 +118,9 @@ class Client
         }
 
         $this->owner = true;
-        if (!$this->lock->exclusion(false)) {
-            throw new UnsupportedFeatureException('the service is started');
+        if (!flock($this->lock, LOCK_EX | LOCK_NB)) {
+            throw new RuntimeException('the service is started');
         }
-
-        $this->channel = channel(base_path(), true);
 
         $this->monitor();
         $this->startProcess();
@@ -111,29 +128,25 @@ class Client
     }
 
     /**
-     * @var Runtime
+     * @var int|null
      */
-    protected Runtime $runtime;
+    protected ?int $warePid = null;
 
     /**
-     * @var Context
+     * @var Coroutine
      */
-    protected Context $guardCoroutine;
+    protected Coroutine $guard;
 
     /**
      * @return void
      */
     protected function startProcess(): void
     {
-        if (isset($this->guardCoroutine)) {
-            $this->guardCoroutine->terminate();
+        if ($this->warePid) {
+            Process::signal($this->warePid, SIGTERM);
         }
 
-        if (isset($this->runtime)) {
-            $this->runtime->terminate();
-        }
-
-        $runtime = process(function () {
+        $this->warePid = Process::fork(function () {
             $envs = [
                 'RIP_PROJECT_PATH' => base_path(),
                 'RIP_HTTP_LISTEN' => Config::get('ripple.HTTP_LISTEN'),
@@ -143,20 +156,11 @@ class Client
             ];
 
             pcntl_exec(PHP_BINARY, [sprintf('%s/%s', __DIR__, 'ServerBin.php')], $envs);
-        })->run();
+        });
 
-        if (!$runtime) {
-            throw new RuntimeException('');
-        }
-
-        $this->runtime = $runtime;
-        $this->guardCoroutine = go(function () use ($runtime) {
-            while (1) {
-                \Co\sleep(1);
-                if (!$this->runtime->isRunning()) {
-                    go(fn () => $this->startProcess());
-                }
-            }
+        $this->guard = go(function () {
+            Process::wait($this->warePid);
+            $this->startProcess();
         });
     }
 
@@ -165,49 +169,52 @@ class Client
      */
     private function monitor(): void
     {
+        if (file_exists($this->channelPath)) {
+            unlink($this->channelPath);
+        }
+
+        posix_mkfifo($this->channelPath, 0755);
+        $fifo = fopen($this->channelPath, 'r+');
+        stream_set_blocking($fifo, false);
+
+        $this->channel = new Stream($fifo);
         go(function () {
+            $zx7e = new Zx7e();
             while (1) {
-                $command = $this->channel->receive();
-                switch ($command) {
-                    case 'stop':
-                        $this->stop();
-                        break;
+                $read = $this->channel->read(1024);
+                $commands = $zx7e->fill($read);
+                foreach ($commands as $command) {
+                    switch ($command) {
+                        case 'stop':
+                            $this->stop();
+                            break;
 
-                    case 'reload':
-                        $this->reload();
-                        break;
+                        case 'reload':
+                            $this->reload();
+                            break;
 
-                    case 'restart':
-                        $this->restart();
-                        break;
+                        case 'restart':
+                            $this->restart();
+                            break;
 
-                    default:
-                        Output::write($command);
-                        break;
+                        default:
+                            Stdin::print($command);
+                            break;
+                    }
                 }
+                \Co\sleep(1);
             }
         });
 
         try {
-            onSignal(SIGINT, function () {
-                $this->stop();
-            });
-
-            onSignal(SIGTERM, function () {
-                $this->stop();
-            });
-
-            onSignal(SIGQUIT, function () {
-                $this->stop();
-            });
-        } catch (UnsupportedFeatureException) {
-            Output::warning('Failed to register signal handler');
+            Event::watchSignal(SIGINT, fn () => $this->stop());
+            Event::watchSignal(SIGTERM, fn () => $this->stop());
+            Event::watchSignal(SIGQUIT, fn () => $this->stop());
+        } catch (RuntimeException) {
+            Stdin::println('Failed to register signal handler');
         }
 
         cli_set_process_title('ripple-laravel-ware');
-        repeat(static function () {
-            gc_collect_cycles();
-        }, 1);
     }
 
     /**
@@ -216,12 +223,20 @@ class Client
     #[NoReturn]
     public function stop(): void
     {
-        if (isset($this->guardCoroutine)) {
-            $this->guardCoroutine->terminate();
+        if (isset($this->guard)) {
+            Scheduler::terminate($this->guard)->resolve();
         }
 
-        if (isset($this->runtime)) {
-            $this->runtime->terminate();
+        if ($this->warePid) {
+            Process::signal($this->warePid, SIGTERM);
+        }
+
+        if (isset($this->channel)) {
+            $this->channel->close();
+        }
+
+        if (file_exists($this->channelPath)) {
+            unlink($this->channelPath);
         }
 
         exit(0);
@@ -232,8 +247,8 @@ class Client
      */
     public function reload(): void
     {
-        if (isset($this->runtime)) {
-            $this->runtime->terminate();
+        if ($this->warePid) {
+            Process::signal($this->warePid, SIGTERM);
         }
     }
 
@@ -243,8 +258,8 @@ class Client
      */
     public function restart(): void
     {
-        if (isset($this->runtime)) {
-            $this->runtime->terminate();
+        if ($this->warePid) {
+            Process::signal($this->warePid, SIGTERM);
         }
     }
 
@@ -257,8 +272,9 @@ class Client
             throw new RuntimeException('the service is running');
         }
 
-        if ($this->lock->shareable(false)) {
-            $this->lock->unlock();
+        // 获取到锁则说明服务没在运行
+        if (flock($this->lock, LOCK_SH | LOCK_NB)) {
+            flock($this->lock, LOCK_UN);
             return false;
         }
 

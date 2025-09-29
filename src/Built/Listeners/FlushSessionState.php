@@ -16,7 +16,6 @@ class FlushSessionState
 {
     /**
      * Handle the event.
-     *
      * @param mixed $event
      */
     public function handle(mixed $event): void

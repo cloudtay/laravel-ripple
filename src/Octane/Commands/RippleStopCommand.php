@@ -12,7 +12,6 @@
 
 namespace Laravel\Ripple\Octane\Commands;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Laravel\Octane\Commands\StopCommand;
 use Laravel\Ripple\Inspector\Inspector;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -24,21 +23,18 @@ class RippleStopCommand extends StopCommand
 {
     /**
      * The command's signature.
-     *
      * @var string
      */
     public $signature = 'octane:stop@ripple';
 
     /**
      * The command's description.
-     *
      * @var string
      */
     public $description = 'Stop the Octane server';
 
     /**
      * Handle the command.
-     *
      * @return int
      */
     public function handle(): int
@@ -55,18 +51,14 @@ class RippleStopCommand extends StopCommand
      */
     protected function stopRippleServer(): int
     {
-        try {
-            $inspector = app(Inspector::class);
-            if (!$inspector->serverIsRunning()) {
-                $this->components->error('Ripple server is not running.');
-                return 1;
-            }
-
-            $this->components->info('Stopping server...');
-            $inspector->stopServer();
-        } catch (BindingResolutionException $e) {
+        $inspector = app(Inspector::class);
+        if (!$inspector->serverIsRunning()) {
+            $this->components->error('Ripple server is not running.');
             return 1;
         }
+
+        $this->components->info('Stopping server...');
+        $inspector->stopServer();
 
         return 0;
     }

@@ -29,7 +29,6 @@ class ContextManager
 
     /**
      * @param Container $application
-     *
      * @return void
      */
     public static function bind(Container $application): void
@@ -56,7 +55,6 @@ class ContextManager
     /**
      * @param string|null $abstract
      * @param array       $parameters
-     *
      * @return mixed
      * @throws BindingResolutionException
      */

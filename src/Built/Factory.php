@@ -12,17 +12,11 @@
 
 namespace Laravel\Ripple\Built;
 
-use FilesystemIterator;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Config;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use Ripple\File\File;
-use Ripple\File\Monitor;
-use SplFileInfo;
+use Laravel\Ripple\Monitor;
 
 use function is_dir;
-use function array_shift;
 use function is_file;
 
 class Factory
@@ -104,10 +98,8 @@ class Factory
      */
     public static function createMonitor(): Monitor
     {
-        $monitor    = File::getInstance()->monitor();
+        $monitor = new Monitor();
         $watchPaths = Config::get('ripple.WATCH_PATHS', []);
-
-        $after = [];
 
         foreach ($watchPaths as $path) {
             if (is_file($path)) {
@@ -115,27 +107,7 @@ class Factory
             }
 
             if (is_dir($path)) {
-                $iterator = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-                    RecursiveIteratorIterator::SELF_FIRST
-                );
-
-                /*** @var SplFileInfo $file */
-                foreach ($iterator as $file) {
-                    if ($file->isDir()) {
-                        $after[] = $file->getPathname();
-                    }
-
-                    if ($file->isFile()) {
-                        $monitor->add($file->getPathname());
-                    }
-                }
-
-                $after[] = $path;
-            }
-
-            while ($path = array_shift($after)) {
-                $monitor->add($path);
+                $monitor->add($path, 'php');
             }
         }
 

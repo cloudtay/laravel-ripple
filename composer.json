@@ -19,21 +19,13 @@
     "ext-posix": "*",
     "ext-sockets": "*",
     "ext-pdo": "*",
-    "cloudtay/ripple": "^1.0",
-    "cloudtay/ripple-http": "^1.0",
+    "cloudtay/ripple": "^2.0",
     "laravel/framework": "^11.0|^12.0"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "*",
-    "illuminate/http": "*",
-    "illuminate/console": "*",
-    "illuminate/container": "*",
-    "illuminate/support": "*",
     "phpunit/phpunit": "*",
     "laravel/octane": "2.x-dev"
-  },
-  "suggest": {
-    "cloudtay/ripple-websocket": "^1.0"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,

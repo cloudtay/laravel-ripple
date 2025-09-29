@@ -24,17 +24,18 @@ use Laravel\Ripple\Built\Factory;
 use Laravel\Ripple\Built\Response\IteratorResponse;
 use Laravel\Ripple\Built\Traits\DispatchesEvents;
 use ReflectionException;
-use Ripple\Http\Server;
-use Ripple\Http\Server\Request;
+use Ripple\Net\Http;
+use Ripple\Net\Http\Server;
+use Ripple\Net\Http\Server\Request;
+use Ripple\Runtime\Support\Stdin;
 use Ripple\Stream\Exception\ConnectionException;
-use Ripple\Utils\Output;
-use Ripple\Worker\Manager;
-use Ripple\Worker\Worker;
+use Ripple\Worker;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
 use function cli_set_process_title;
 use function fopen;
+use function stream_context_create;
 
 /**
  * @Author cclilshy
@@ -52,43 +53,39 @@ class HttpWorker extends Worker
 
     /**
      * @param Application $application
-     * @param string                             $address
-     * @param int                                $count
-     * @param bool                               $reload
+     * @param string $address
+     * @param int $count
+     * @param bool $reload
      */
     public function __construct(
         protected Application $application,
         protected string      $address,
-        protected int         $count,
+        public int            $count,
         protected bool        $reload = false,
     ) {
         $this->name = 'http-server';
+        parent::__construct();
     }
 
     /**
      * @Author cclilshy
      * @Date   2024/8/16 23:34
-     *
-     * @param Manager $manager
-     *
      * @return void
-     * @throws Throwable
      */
-    public function register(Manager $manager): void
+    public function register(): void
     {
         /*** output worker*/
-        Output::info("worker listening on {$this->address} x {$this->count} registered");
+        Stdin::println("worker listening on {$this->address} x {$this->count} registered");
+
+        $context = stream_context_create([
+            'socket' => [
+                'so_reuseport' => 1,
+                'so_reuseaddr' => 1
+            ]
+        ]);
 
         /*** initialize*/
-        $this->server = new Server(
-            address: $this->address,
-            context: [
-                'socket' => [
-                    'so_reuseport' => 1,
-                    'so_reuseaddr' => 1
-                ]
-            ]
-        );
+        $this->server = Http::server($this->address, $context);
     }
 
     /**
@@ -106,7 +103,7 @@ class HttpWorker extends Worker
         try {
             $this->application->make(Kernel::class)->bootstrap();
         } catch (BindingResolutionException $e) {
-            Output::warning("kernel resolution failed: {$e->getMessage()}");
+            Stdin::println("kernel resolution failed: {$e->getMessage()}");
             exit(1);
         }
 
@@ -117,19 +114,19 @@ class HttpWorker extends Worker
                 &&
                 $this->application->make($service);
             } catch (Throwable $e) {
-                Output::warning($e->getMessage());
+                Stdin::println($e->getMessage());
             }
         }
 
-        $this->server->onRequest(fn (Request $request) => $this->onRequest($request));
+        $this->server->onRequest = fn (Request $request) => $this->onRequest($request);
         $this->server->listen();
     }
 
     /**
      * @param Request $request
-     *
      * @return void
      * @throws ReflectionException
+     * @throws ConnectionException
      */
     protected function onRequest(Request $request): void
     {
@@ -137,7 +134,7 @@ class HttpWorker extends Worker
             ($this->customHandler)($request);
         }
 
-        $application    = clone $this->application;
+        $application = clone $this->application;
         $laravelRequest = new \Illuminate\Http\Request(
             $request->GET,
             $request->POST,
@@ -156,11 +153,11 @@ class HttpWorker extends Worker
 
         try {
             /*** @var \Illuminate\Foundation\Http\Kernel $kernel */
-            $kernel          = $application->make(Kernel::class);
+            $kernel = $application->make(Kernel::class);
             $laravelResponse = $kernel->handle($laravelRequest);
 
             /*** handle response*/
-            $response = $request->getResponse();
+            $response = $request->response();
             $response->setStatusCode($laravelResponse->getStatusCode());
 
             foreach ($laravelResponse->headers->allPreserveCaseWithoutCookies() as $key => $value) {
@@ -168,18 +165,18 @@ class HttpWorker extends Worker
             }
 
             foreach ($laravelResponse->headers->getCookies() as $cookie) {
-                $response->withCookie($cookie->getName(), $cookie->__toString());
+                $response->withCookieLine($cookie->__toString());
             }
 
             if ($laravelResponse instanceof BinaryFileResponse) {
-                $response->setContent(fopen($laravelResponse->getFile()->getPathname(), 'r+'));
+                $response->withBody(fopen($laravelResponse->getFile()->getPathname(), 'r+'));
             } elseif ($laravelResponse instanceof IteratorResponse) {
-                $response->setContent($laravelResponse->getIterator());
+                $response->withBody($laravelResponse->getIterator());
             } else {
-                $response->setContent($laravelResponse->getContent());
+                $response->withBody($laravelResponse->getContent());
             }
 
-            $response->respond();
+            $request->respond();
             /*** handle the response end*/
 
             $this->dispatchEvent($application, new RequestHandled($this->application, $application, $laravelRequest, $laravelResponse));
@@ -189,14 +186,18 @@ class HttpWorker extends Worker
         } catch (ConnectionException $e) {
             $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
         } catch (Throwable $e) {
-            $request->respond($e->getMessage(), [], $e->getCode());
+            try {
+                $request->respond($e->getMessage(), [], 500);
+            } catch (Throwable) {
+            }
+
             $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
         } finally {
             foreach (Factory::defaultServicesToWarm() as $service) {
                 try {
                     $application->forgetInstance($service);
                 } catch (Throwable $e) {
-                    Output::warning($e->getMessage());
+                    Stdin::println($e->getMessage());
                 }
             }
             unset($application);
@@ -205,7 +206,6 @@ class HttpWorker extends Worker
 
     /**
      * @param Closure $handler
-     *
      * @return void
      */
     public function customHandler(Closure $handler): void
