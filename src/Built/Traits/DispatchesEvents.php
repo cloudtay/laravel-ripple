@@ -19,7 +19,6 @@ trait DispatchesEvents
 {
     /**
      * Dispatch the given event via the given application.
-     *
      * @param Application $app
      * @param mixed                              $event
      */

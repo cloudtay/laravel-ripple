@@ -21,7 +21,7 @@ class WorkerErrorOccurred
     /**
      * @param Application $app
      * @param Application $sandbox
-     * @param Throwable                          $exception
+     * @param Throwable $exception
      */
     public function __construct(public Application $app, public Application $sandbox, public Throwable $exception)
     {

@@ -18,7 +18,8 @@ use Laravel\Octane\Contracts\Client;
 use Laravel\Octane\OctaneResponse;
 use Laravel\Octane\RequestContext;
 use Laravel\Ripple\Built\Response\IteratorResponse;
-use Ripple\Utils\Output;
+use Ripple\Runtime\Support\Stdin;
+use Ripple\Stream\Exception\ConnectionException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
@@ -31,7 +32,6 @@ class RippleClient implements Client
 {
     /**
      * @param RequestContext $context
-     *
      * @return array
      */
     public function marshalRequest(RequestContext $context): array
@@ -57,13 +57,14 @@ class RippleClient implements Client
     /**
      * @param RequestContext $context
      * @param OctaneResponse $response
-     *
      * @return void
+     * @throws ConnectionException
      */
     public function respond(RequestContext $context, OctaneResponse $response): void
     {
+        /*** @var \Ripple\Net\Http\Server\Request $rippleHttpRequest */
         $rippleHttpRequest   = $context->data['rippleHttpRequest'];
-        $rippleResponse  = $rippleHttpRequest->getResponse();
+        $rippleResponse  = $rippleHttpRequest->response();
         $laravelResponse = $response->response;
         $rippleResponse->setStatusCode($laravelResponse->getStatusCode());
 
@@ -72,18 +73,18 @@ class RippleClient implements Client
         }
 
         foreach ($laravelResponse->headers->getCookies() as $cookie) {
-            $rippleResponse->withCookie($cookie->getName(), $cookie->__toString());
+            $rippleResponse->withCookie($cookie->getName(), ['value' => $cookie->__toString()]);
         }
 
         if ($laravelResponse instanceof BinaryFileResponse) {
-            $rippleResponse->setContent(fopen($laravelResponse->getFile()->getPathname(), 'r+'));
+            $rippleResponse->withBody(fopen($laravelResponse->getFile()->getPathname(), 'r+'));
         } elseif ($laravelResponse instanceof IteratorResponse) {
-            $rippleResponse->setContent($laravelResponse->getIterator());
+            $rippleResponse->withBody($laravelResponse->getIterator());
         } else {
-            $rippleResponse->setContent($laravelResponse->getContent());
+            $rippleResponse->withBody($laravelResponse->getContent());
         }
 
-        $rippleResponse->respond();
+        $rippleResponse($rippleHttpRequest->conn->stream);
     }
 
     /**
@@ -91,11 +92,10 @@ class RippleClient implements Client
      * @param Application $app
      * @param Request $request
      * @param RequestContext $context
-     *
      * @return void
      */
     public function error(Throwable $e, Application $app, Request $request, RequestContext $context): void
     {
-        Output::error($e->getMessage());
+        Stdin::println($e->getMessage());
     }
 }

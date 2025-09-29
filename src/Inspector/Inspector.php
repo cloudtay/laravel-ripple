@@ -12,8 +12,11 @@
 
 namespace Laravel\Ripple\Inspector;
 
-use function base_path;
-use function Co\channel;
+use Ripple\Serial\Zx7e;
+
+use function fclose;
+use function fopen;
+use function fwrite;
 
 class Inspector
 {
@@ -40,9 +43,9 @@ class Inspector
         if (!$this->serverIsRunning()) {
             return;
         }
-
-        $channel = channel(base_path());
-        $channel->send('reload');
+        $channel = fopen($this->client->channelPath, 'w');
+        fwrite($channel, Zx7e::encode('reload'));
+        fclose($channel);
     }
 
     /**
@@ -54,8 +57,9 @@ class Inspector
             return true;
         }
 
-        $channel = channel(base_path());
-        $channel->send('stop');
+        $channel = fopen($this->client->channelPath, 'w');
+        fwrite($channel, Zx7e::encode('stop'));
+        fclose($channel);
         return true;
     }
 
@@ -68,7 +72,8 @@ class Inspector
             return;
         }
 
-        $channel = channel(base_path());
-        $channel->send('restart');
+        $channel = fopen($this->client->channelPath, 'w');
+        fwrite($channel, Zx7e::encode('restart'));
+        fclose($channel);
     }
 }

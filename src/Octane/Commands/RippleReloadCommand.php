@@ -12,7 +12,6 @@
 
 namespace Laravel\Ripple\Octane\Commands;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Laravel\Octane\Commands\StopCommand;
 use Laravel\Ripple\Octane\RippleServerProcessInspector;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -24,21 +23,18 @@ class RippleReloadCommand extends StopCommand
 {
     /**
      * The command's signature.
-     *
      * @var string
      */
     public $signature = 'octane:reload@ripple';
 
     /**
      * The command's description.
-     *
      * @var string
      */
     public $description = 'Stop the Octane server';
 
     /**
      * Handle the command.
-     *
      * @return int
      */
     public function handle(): int
@@ -55,12 +51,7 @@ class RippleReloadCommand extends StopCommand
      */
     protected function reloadRippleServer(): int
     {
-        try {
-            $inspector = app(RippleServerProcessInspector::class);
-        } catch (BindingResolutionException $e) {
-            $this->components->error('Unable to resolve Ripple server process inspector.');
-            return 1;
-        }
+        $inspector = app(RippleServerProcessInspector::class);
 
         if (!$inspector->serverIsRunning()) {
             $this->components->error('Octane server is not running.');

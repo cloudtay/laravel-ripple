@@ -27,7 +27,6 @@ class Util
     /**
      * @param $path1
      * @param $path2
-     *
      * @return string
      */
     public static function getRelativePath($path1, $path2): string
@@ -43,7 +42,7 @@ class Util
             if (str_starts_with($path1, $path2)) {
                 return substr($path1, strlen($path2) + 1);
             }
-        } catch (Throwable $e) {
+        } catch (Throwable) {
             return '';
         }
 

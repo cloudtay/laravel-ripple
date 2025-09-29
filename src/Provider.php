@@ -16,6 +16,7 @@ use Composer\InstalledVersions;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Ripple\Built\Command;
 use Laravel\Ripple\Octane\RippleProvider;
+use Laravel\Ripple\Database\Provider as RippleDatabaseProvider;
 
 use function config_path;
 
@@ -23,7 +24,6 @@ class Provider extends ServiceProvider
 {
     /**
      * Register any application services.
-     *
      * @return void
      */
     public function register(): void
@@ -32,6 +32,8 @@ class Provider extends ServiceProvider
         if (InstalledVersions::isInstalled('laravel/octane')) {
             $this->app->register(RippleProvider::class);
         }
+
+        $this->app->register(RippleDatabaseProvider::class);
     }
 
     /**
