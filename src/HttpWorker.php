@@ -126,12 +126,12 @@ class HttpWorker extends Worker
      * @param Request $request
      * @return void
      * @throws ReflectionException
-     * @throws ConnectionException
      */
     protected function onRequest(Request $request): void
     {
         if (isset($this->customHandler)) {
             ($this->customHandler)($request);
+            return;
         }
 
         $application = clone $this->application;

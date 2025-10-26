@@ -84,7 +84,7 @@ class RippleClient implements Client
             $rippleResponse->withBody($laravelResponse->getContent());
         }
 
-        $rippleResponse($rippleHttpRequest->conn->stream);
+        $rippleHttpRequest->respond();
     }
 
     /**
