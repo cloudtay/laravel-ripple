@@ -21,9 +21,15 @@ use Laravel\Ripple\Built\Response\IteratorResponse;
 use Ripple\Runtime\Support\Stdin;
 use Ripple\Stream\Exception\ConnectionException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
 use function fopen;
+use function file_exists;
+use function is_array;
+
+use const UPLOAD_ERR_NO_FILE;
+use const UPLOAD_ERR_OK;
 
 /**
  *
@@ -42,7 +48,7 @@ class RippleClient implements Client
             $rippleHttpRequest->POST,
             [],
             $rippleHttpRequest->COOKIE,
-            $rippleHttpRequest->FILES,
+            $this->parseFiles($rippleHttpRequest->FILES),
             $rippleHttpRequest->SERVER,
             $rippleHttpRequest->CONTENT,
         );
@@ -97,5 +103,38 @@ class RippleClient implements Client
     public function error(Throwable $e, Application $app, Request $request, RequestContext $context): void
     {
         Stdin::println($e->getMessage());
+    }
+
+    /*** @return array<string, array<UploadedFile>> */
+    protected function parseFiles(array $files): array
+    {
+        if (empty($files)) {
+            return [];
+        }
+
+        $parsed = [];
+        foreach ($files as $name => $items) {
+            if (!is_array($items)) {
+                continue;
+            }
+
+            if (isset($items[0]['path']) && is_array($items[0])) {
+                $parsed[$name] = [];
+                foreach ($items as $item) {
+                    $path = $item['path'];
+                    $parsed[$name][] = new UploadedFile(
+                        $path,
+                        $item['fileName'] ?? '',
+                        $item['contentType'] ?? 'application/octet-stream',
+                        file_exists($path) ? UPLOAD_ERR_OK : UPLOAD_ERR_NO_FILE,
+                        true
+                    );
+                }
+            } else {
+                $parsed[$name] = $items;
+            }
+        }
+
+        return $parsed;
     }
 }
