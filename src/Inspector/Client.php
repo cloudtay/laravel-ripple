@@ -224,7 +224,7 @@ class Client
     public function stop(): void
     {
         if (isset($this->guard)) {
-            Scheduler::terminate($this->guard)->resolve();
+            Scheduler::terminate($this->guard)->unwrap();
         }
 
         if ($this->warePid) {
