@@ -68,7 +68,7 @@ class RippleClient implements Client
      */
     public function respond(RequestContext $context, OctaneResponse $response): void
     {
-        /*** @var \Ripple\Net\Http\Server\Request $rippleHttpRequest */
+        /*** @var \Ripple\Net\Http\Request $rippleHttpRequest */
         $rippleHttpRequest   = $context->data['rippleHttpRequest'];
         $rippleResponse  = $rippleHttpRequest->response();
         $laravelResponse = $response->response;
@@ -90,7 +90,7 @@ class RippleClient implements Client
             $rippleResponse->withBody($laravelResponse->getContent());
         }
 
-        $rippleHttpRequest->respond();
+        $rippleResponse->send();
     }
 
     /**
