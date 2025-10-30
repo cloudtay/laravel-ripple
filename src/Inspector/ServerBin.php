@@ -25,7 +25,7 @@ use Laravel\Ripple\HttpWorker;
 use Laravel\Ripple\Octane\RippleClient;
 use Laravel\Ripple\Util;
 use Ripple\Event;
-use Ripple\Net\Http\Server\Request;
+use Ripple\Net\Http\Request;
 use Ripple\Runtime\Support\Stdin;
 use Ripple\Worker\Manager;
 

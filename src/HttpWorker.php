@@ -26,7 +26,7 @@ use Laravel\Ripple\Built\Traits\DispatchesEvents;
 use ReflectionException;
 use Ripple\Net\Http;
 use Ripple\Net\Http\Server;
-use Ripple\Net\Http\Server\Request;
+use Ripple\Net\Http\Request;
 use Ripple\Runtime\Support\Stdin;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Worker;
@@ -182,7 +182,7 @@ class HttpWorker extends Worker
                 $response->withBody($laravelResponse->getContent());
             }
 
-            $request->respond();
+            $response->send();
             /*** handle the response end*/
 
             $this->dispatchEvent($application, new RequestHandled($this->application, $application, $laravelRequest, $laravelResponse));
