@@ -37,11 +37,6 @@ use Throwable;
 use function cli_set_process_title;
 use function fopen;
 use function stream_context_create;
-use function file_exists;
-use function is_array;
-
-use const UPLOAD_ERR_NO_FILE;
-use const UPLOAD_ERR_OK;
 
 /**
  * @Author cclilshy
@@ -213,34 +208,7 @@ class HttpWorker extends Worker
     /*** @return array<string, array<UploadedFile>> */
     protected function parseFiles(array $files): array
     {
-        if (empty($files)) {
-            return [];
-        }
-
-        $parsed = [];
-        foreach ($files as $name => $items) {
-            if (!is_array($items)) {
-                continue;
-            }
-
-            if (isset($items[0]['path']) && is_array($items[0])) {
-                $parsed[$name] = [];
-                foreach ($items as $item) {
-                    $path = $item['path'];
-                    $parsed[$name][] = new UploadedFile(
-                        $path,
-                        $item['fileName'] ?? '',
-                        $item['contentType'] ?? 'application/octet-stream',
-                        file_exists($path) ? UPLOAD_ERR_OK : UPLOAD_ERR_NO_FILE,
-                        true
-                    );
-                }
-            } else {
-                $parsed[$name] = $items;
-            }
-        }
-
-        return $parsed;
+        return Util::normalizeRippleFiles($files);
     }
 
     /**

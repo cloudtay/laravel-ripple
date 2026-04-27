@@ -12,8 +12,13 @@
 
 namespace Laravel\Ripple;
 
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
+use function array_is_list;
+use function file_exists;
+use function is_array;
+use function is_string;
 use function realpath;
 use function rtrim;
 use function str_starts_with;
@@ -21,6 +26,8 @@ use function strlen;
 use function substr;
 
 use const DIRECTORY_SEPARATOR;
+use const UPLOAD_ERR_NO_FILE;
+use const UPLOAD_ERR_OK;
 
 class Util
 {
@@ -47,5 +54,54 @@ class Util
         }
 
         return '';
+    }
+
+    public static function normalizeRippleFiles(array $files): array
+    {
+        $parsed = [];
+        foreach ($files as $name => $value) {
+            $parsed[$name] = self::normalizeRippleFileValue($value);
+        }
+
+        return $parsed;
+    }
+
+    private static function normalizeRippleFileValue(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        if (
+            isset($value['path'])
+            && is_string($value['path'])
+            && (
+                ($value['isFile'] ?? false) === true
+                || isset($value['fileName'])
+                || isset($value['contentType'])
+            )
+        ) {
+            return new UploadedFile(
+                $value['path'],
+                $value['fileName'] ?? '',
+                $value['contentType'] ?? 'application/octet-stream',
+                file_exists($value['path']) ? UPLOAD_ERR_OK : UPLOAD_ERR_NO_FILE,
+                true
+            );
+        }
+
+        if (array_is_list($value)) {
+            foreach ($value as $index => $item) {
+                $value[$index] = self::normalizeRippleFileValue($item);
+            }
+
+            return $value;
+        }
+
+        foreach ($value as $key => $item) {
+            $value[$key] = self::normalizeRippleFileValue($item);
+        }
+
+        return $value;
     }
 }
