@@ -15,6 +15,7 @@ namespace Laravel\Ripple\Octane\Commands;
 use Laravel\Octane\Commands\StopCommand;
 use Laravel\Ripple\Octane\RippleServerProcessInspector;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Throwable;
 
 use function app;
 
@@ -59,7 +60,12 @@ class RippleReloadCommand extends StopCommand
         }
 
         $this->components->info('Reloading workers...');
-        $inspector->reloadServer();
+        try {
+            $inspector->reloadServer();
+        } catch (Throwable $throwable) {
+            $this->components->error($throwable->getMessage());
+            return 1;
+        }
 
         return 0;
     }

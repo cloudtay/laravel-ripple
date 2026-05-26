@@ -16,6 +16,7 @@ use Laravel\Ripple\Inspector\Client;
 use Ripple\Runtime\Support\Stdin;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Throwable;
 
 /**
  * @Author cclilshy
@@ -70,7 +71,11 @@ class Command extends \Illuminate\Console\Command
                     Stdin::println('the server is not running');
                     return;
                 }
-                $client->inspector->stopServer();
+                try {
+                    $client->inspector->stopServer();
+                } catch (Throwable $throwable) {
+                    Stdin::println($throwable->getMessage());
+                }
                 break;
 
             case 'reload':
@@ -78,7 +83,11 @@ class Command extends \Illuminate\Console\Command
                     Stdin::println('the server is not running');
                     return;
                 }
-                $client->inspector->reloadServer();
+                try {
+                    $client->inspector->reloadServer();
+                } catch (Throwable $throwable) {
+                    Stdin::println($throwable->getMessage());
+                }
                 break;
 
             case 'restart':
@@ -86,7 +95,11 @@ class Command extends \Illuminate\Console\Command
                     Stdin::println('the server is not running');
                     return;
                 }
-                $client->inspector->restartServer();
+                try {
+                    $client->inspector->restartServer();
+                } catch (Throwable $throwable) {
+                    Stdin::println($throwable->getMessage());
+                }
                 break;
 
             case 'status':

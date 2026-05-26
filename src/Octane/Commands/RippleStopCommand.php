@@ -15,6 +15,7 @@ namespace Laravel\Ripple\Octane\Commands;
 use Laravel\Octane\Commands\StopCommand;
 use Laravel\Ripple\Inspector\Inspector;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Throwable;
 
 use function app;
 
@@ -58,7 +59,12 @@ class RippleStopCommand extends StopCommand
         }
 
         $this->components->info('Stopping server...');
-        $inspector->stopServer();
+        try {
+            $inspector->stopServer();
+        } catch (Throwable $throwable) {
+            $this->components->error($throwable->getMessage());
+            return 1;
+        }
 
         return 0;
     }

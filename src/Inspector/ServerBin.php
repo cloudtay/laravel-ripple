@@ -75,6 +75,11 @@ final class ServerBin
      * @var string
      */
     public static string $reloadStatus = self::STATUS_IDLE;
+
+    /**
+     * @var bool
+     */
+    public static bool $restartScheduled = false;
 }
 
 /**
@@ -84,6 +89,22 @@ final class ServerBin
 function __rip_restart(): void
 {
     exit(0);
+}
+
+/**
+ * @return void
+ */
+function __rip_debounced_restart(): void
+{
+    if (ServerBin::$restartScheduled) {
+        return;
+    }
+
+    ServerBin::$restartScheduled = true;
+    go(function (): void {
+        \Co\sleep(0.3);
+        __rip_restart();
+    });
 }
 
 /**
@@ -187,15 +208,15 @@ $includedFiles = get_included_files();
 
 if (RIP_WATCH) {
     $hotReloadWatch = Factory::createMonitor();
-    $hotReloadWatch->onCreate = static fn () => __rip_restart();
-    $hotReloadWatch->onDelete = static fn () => __rip_restart();
+    $hotReloadWatch->onCreate = static fn () => __rip_debounced_restart();
+    $hotReloadWatch->onDelete = static fn () => __rip_debounced_restart();
     $hotReloadWatch->onModify = static function (string $file) use ($manager, $includedFiles) {
         if (!is_file($file)) {
             return;
         }
 
         if (in_array($file, $includedFiles, true)) {
-            __rip_restart();
+            __rip_debounced_restart();
         } else {
             __rip_reload($manager);
 

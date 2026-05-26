@@ -30,28 +30,45 @@ use function cli_set_process_title;
 use function Co\go;
 use function Co\wait;
 use function config_path;
+use function fclose;
 use function file_exists;
+use function fopen;
+use function fwrite;
+use function is_array;
+use function json_decode;
+use function json_encode;
+use function microtime;
+use function parse_url;
 use function pcntl_exec;
 use function shell_exec;
 use function sprintf;
 use function storage_path;
-use function fopen;
 use function flock;
 use function unlink;
 use function posix_mkfifo;
+use function stream_socket_client;
 use function stream_set_blocking;
 
+use const JSON_THROW_ON_ERROR;
 use const PHP_BINARY;
 use const SIGINT;
+use const SIGKILL;
 use const SIGQUIT;
 use const SIGTERM;
 use const LOCK_EX;
 use const LOCK_NB;
 use const LOCK_SH;
 use const LOCK_UN;
+use const PHP_URL_HOST;
+use const PHP_URL_PORT;
 
 class Client
 {
+    public const COMMAND_TIMEOUT_SECONDS = 15;
+    private const STOP_TIMEOUT_SECONDS = 5;
+    private const READY_TIMEOUT_SECONDS = 5;
+    private const PORT_RELEASE_TIMEOUT_SECONDS = 5;
+
     /**
      * @var Inspector
      */
@@ -138,14 +155,15 @@ class Client
     protected Coroutine $guard;
 
     /**
+     * @var bool
+     */
+    private bool $intentionalLifecycleChange = false;
+
+    /**
      * @return void
      */
     protected function startProcess(): void
     {
-        if ($this->warePid) {
-            Process::signal($this->warePid, SIGTERM);
-        }
-
         $this->warePid = Process::fork(function () {
             $envs = [
                 'RIP_PROJECT_PATH' => base_path(),
@@ -158,9 +176,19 @@ class Client
             pcntl_exec(PHP_BINARY, [sprintf('%s/%s', __DIR__, 'ServerBin.php')], $envs);
         });
 
+        Stdin::println("starting pid={$this->warePid}");
+
         $this->guard = go(function () {
-            Process::wait($this->warePid);
+            $pid = $this->warePid;
+            $exitCode = Process::wait($pid);
+            if ($this->intentionalLifecycleChange || $this->warePid !== $pid) {
+                return;
+            }
+
+            Stdin::println("worker exited pid={$pid} code={$exitCode}; restarting");
+            $this->waitUntilPortIsReleased();
             $this->startProcess();
+            $this->waitUntilReady();
         });
     }
 
@@ -184,22 +212,29 @@ class Client
                 $read = $this->channel->read(1024);
                 $commands = $zx7e->fill($read);
                 foreach ($commands as $command) {
-                    switch ($command) {
-                        case 'stop':
-                            $this->stop();
-                            break;
+                    $command = $this->decodeCommand($command);
+                    $action = $command['command'];
 
-                        case 'reload':
-                            $this->reload();
-                            break;
+                    try {
+                        switch ($action) {
+                            case 'stop':
+                                $this->stop($command['ack']);
+                                break;
 
-                        case 'restart':
-                            $this->restart();
-                            break;
+                            case 'reload':
+                                $this->restart('reload', $command['ack']);
+                                break;
 
-                        default:
-                            Stdin::print($command);
-                            break;
+                            case 'restart':
+                                $this->restart('restart', $command['ack']);
+                                break;
+
+                            default:
+                                Stdin::print($action);
+                                break;
+                        }
+                    } catch (Throwable $throwable) {
+                        $this->ack($command['ack'], false, $throwable->getMessage());
                     }
                 }
                 \Co\sleep(1);
@@ -221,15 +256,14 @@ class Client
      * @return void
      */
     #[NoReturn]
-    public function stop(): void
+    public function stop(?string $ackPath = null): void
     {
         if (isset($this->guard)) {
             Scheduler::terminate($this->guard)->unwrap();
         }
 
-        if ($this->warePid) {
-            Process::signal($this->warePid, SIGTERM);
-        }
+        $this->stopOldProcess('stop');
+        $this->ack($ackPath, true, 'stop complete');
 
         if (isset($this->channel)) {
             $this->channel->close();
@@ -247,20 +281,36 @@ class Client
      */
     public function reload(): void
     {
-        if ($this->warePid) {
-            Process::signal($this->warePid, SIGTERM);
-        }
+        $this->restart('reload');
     }
 
     /**
+     * @param string $reason
+     * @param string|null $ackPath
      * @return void
      * @throws Throwable
      */
-    public function restart(): void
+    public function restart(string $reason = 'restart', ?string $ackPath = null): void
     {
-        if ($this->warePid) {
-            Process::signal($this->warePid, SIGTERM);
-        }
+        (new ServerLifecycle(
+            static function (string $message): void {
+                Stdin::println($message);
+            },
+            function () use ($reason): void {
+                $this->stopOldProcess($reason);
+            },
+            function (): void {
+                $this->waitUntilPortIsReleased();
+            },
+            function (): void {
+                $this->startProcess();
+            },
+            function (): void {
+                $this->waitUntilReady();
+            },
+        ))->restart($reason);
+
+        $this->ack($ackPath, true, "{$reason} complete");
     }
 
     /**
@@ -279,5 +329,194 @@ class Client
         }
 
         return true;
+    }
+
+    /**
+     * @param string $payload
+     * @return array{command:string,ack:string|null}
+     */
+    private function decodeCommand(string $payload): array
+    {
+        try {
+            $decoded = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            $decoded = null;
+        }
+
+        if (is_array($decoded) && isset($decoded['command'])) {
+            return [
+                'command' => (string) $decoded['command'],
+                'ack' => isset($decoded['ack']) ? (string) $decoded['ack'] : null,
+            ];
+        }
+
+        return [
+            'command' => $payload,
+            'ack' => null,
+        ];
+    }
+
+    /**
+     * @param string $reason
+     * @return void
+     */
+    private function stopOldProcess(string $reason): void
+    {
+        if (!$this->warePid) {
+            return;
+        }
+
+        $pid = $this->warePid;
+        Stdin::println("stopping pid={$pid} reason={$reason}");
+
+        $this->intentionalLifecycleChange = true;
+        if (isset($this->guard)) {
+            Scheduler::terminate($this->guard)->unwrap();
+        }
+
+        if (!Process::signal($pid, SIGTERM)) {
+            throw new RuntimeException("Failed to send SIGTERM to pid={$pid}.");
+        }
+
+        $exitCode = $this->waitForProcessExit($pid, self::STOP_TIMEOUT_SECONDS);
+        if ($exitCode === null) {
+            Stdin::println("pid={$pid} did not exit within " . self::STOP_TIMEOUT_SECONDS . 's; sending SIGKILL');
+            Process::signal($pid, SIGKILL);
+            $exitCode = $this->waitForProcessExit($pid, 1);
+        }
+
+        if ($exitCode === null) {
+            throw new RuntimeException("Timed out waiting for old process pid={$pid} to exit.");
+        }
+
+        $this->warePid = null;
+        $this->intentionalLifecycleChange = false;
+        Stdin::println("old process exited pid={$pid} code={$exitCode}");
+    }
+
+    /**
+     * @param int $pid
+     * @param int $timeout
+     * @return int|null
+     */
+    private function waitForProcessExit(int $pid, int $timeout): ?int
+    {
+        $exited = false;
+        $exitCode = null;
+
+        go(function () use ($pid, &$exited, &$exitCode): void {
+            $exitCode = Process::wait($pid);
+            $exited = true;
+        });
+
+        $deadline = microtime(true) + $timeout;
+        while (!$exited && microtime(true) < $deadline) {
+            \Co\sleep(0.05);
+        }
+
+        return $exited ? $exitCode : null;
+    }
+
+    /**
+     * @return void
+     */
+    private function waitUntilPortIsReleased(): void
+    {
+        $target = $this->listenTarget();
+        if ($target === null) {
+            return;
+        }
+
+        $deadline = microtime(true) + self::PORT_RELEASE_TIMEOUT_SECONDS;
+        while (microtime(true) < $deadline) {
+            if (!$this->canConnect($target)) {
+                Stdin::println("port released {$target}");
+                return;
+            }
+            \Co\sleep(0.05);
+        }
+
+        throw new RuntimeException("Timed out waiting for {$target} to be released.");
+    }
+
+    /**
+     * @return void
+     */
+    private function waitUntilReady(): void
+    {
+        $target = $this->listenTarget();
+        if ($target === null) {
+            Stdin::println('ready check skipped: unsupported RIP_HTTP_LISTEN value');
+            return;
+        }
+
+        $deadline = microtime(true) + self::READY_TIMEOUT_SECONDS;
+        while (microtime(true) < $deadline) {
+            if ($this->canConnect($target)) {
+                Stdin::println("listening on {$target}");
+                return;
+            }
+            \Co\sleep(0.05);
+        }
+
+        throw new RuntimeException("Timed out waiting for {$target} to accept connections.");
+    }
+
+    /**
+     * @return string|null
+     */
+    private function listenTarget(): ?string
+    {
+        $listen = (string) Config::get('ripple.HTTP_LISTEN');
+        $host = parse_url($listen, PHP_URL_HOST);
+        $port = parse_url($listen, PHP_URL_PORT);
+
+        if (!$host || !$port) {
+            return null;
+        }
+
+        return "tcp://{$host}:{$port}";
+    }
+
+    /**
+     * @param string $target
+     * @return bool
+     */
+    private function canConnect(string $target): bool
+    {
+        $errno = 0;
+        $error = '';
+        $socket = @stream_socket_client($target, $errno, $error, 0.2);
+        if ($socket === false) {
+            return false;
+        }
+
+        fclose($socket);
+        return true;
+    }
+
+    /**
+     * @param string|null $ackPath
+     * @param bool        $ok
+     * @param string      $message
+     * @return void
+     */
+    private function ack(?string $ackPath, bool $ok, string $message): void
+    {
+        if (!$ackPath) {
+            return;
+        }
+
+        $ack = fopen($ackPath, 'w');
+        if ($ack === false) {
+            Stdin::println("failed to open ack fifo {$ackPath}");
+            return;
+        }
+
+        fwrite($ack, json_encode([
+            'ok' => $ok,
+            'message' => $message,
+        ], JSON_THROW_ON_ERROR));
+        fclose($ack);
     }
 }
