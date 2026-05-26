@@ -21,21 +21,22 @@ use Laravel\Ripple\Built\Events\RequestReceived;
 use Laravel\Ripple\Built\Events\RequestTerminated;
 use Laravel\Ripple\Built\Events\WorkerErrorOccurred;
 use Laravel\Ripple\Built\Factory;
-use Laravel\Ripple\Built\Response\IteratorResponse;
 use Laravel\Ripple\Built\Traits\DispatchesEvents;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use ReflectionException;
 use Ripple\Net\Http;
+use Ripple\Net\Http\Response;
 use Ripple\Net\Http\Server;
-use Ripple\Net\Http\Request;
 use Ripple\Runtime\Support\Stdin;
 use Ripple\Stream\Exception\ConnectionException;
 use Ripple\Worker;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
 use function cli_set_process_title;
-use function fopen;
+use function is_array;
+use function is_object;
 use function stream_context_create;
 
 /**
@@ -119,32 +120,24 @@ class HttpWorker extends Worker
             }
         }
 
-        $this->server->onRequest = fn (Request $request) => $this->onRequest($request);
+        $this->server->onRequest = fn (ServerRequestInterface $request) => $this->onRequest($request);
         $this->server->listen();
     }
 
     /**
-     * @param Request $request
-     * @return void
+     * @param ServerRequestInterface $request
+     * @return ResponseInterface|null
      * @throws ReflectionException
      */
-    protected function onRequest(Request $request): void
+    protected function onRequest(ServerRequestInterface $request): ?ResponseInterface
     {
         if (isset($this->customHandler)) {
-            ($this->customHandler)($request);
-            return;
+            $response = ($this->customHandler)($request);
+            return $response instanceof ResponseInterface ? Util::fromPsrResponse($response) : new Response(500);
         }
 
         $application = clone $this->application;
-        $laravelRequest = new \Illuminate\Http\Request(
-            $request->GET,
-            $request->POST,
-            [],
-            $request->COOKIE,
-            $this->parseFiles($request->FILES),
-            $request->SERVER,
-            $request->CONTENT,
-        );
+        $laravelRequest = $this->toLaravelRequest($request);
 
         $laravelRequest->attributes->set('rippleHttpRequest', $request);
         $laravelRequest->attributes->set('httpRequest', $request);
@@ -157,42 +150,24 @@ class HttpWorker extends Worker
             $kernel = $application->make(Kernel::class);
             $laravelResponse = $kernel->handle($laravelRequest);
 
-            /*** handle response*/
-            $response = $request->response();
-            $response->setStatusCode($laravelResponse->getStatusCode());
-
-            foreach ($laravelResponse->headers->allPreserveCaseWithoutCookies() as $key => $value) {
-                $response->withHeader($key, $value);
-            }
-
-            foreach ($laravelResponse->headers->getCookies() as $cookie) {
-                $response->withCookieLine($cookie->__toString());
-            }
-
-            if ($laravelResponse instanceof BinaryFileResponse) {
-                $response->withBody(fopen($laravelResponse->getFile()->getPathname(), 'r+'));
-            } elseif ($laravelResponse instanceof IteratorResponse) {
-                $response->withBody($laravelResponse->getIterator());
-            } else {
-                $response->withBody($laravelResponse->getContent());
-            }
-
-            $response->send();
-            /*** handle the response end*/
+            $response = Util::toRippleResponse($laravelResponse);
 
             $this->dispatchEvent($application, new RequestHandled($this->application, $application, $laravelRequest, $laravelResponse));
 
-            $kernel->terminate($laravelRequest, $laravelResponse);
-            $this->dispatchEvent($application, new RequestTerminated($this->application, $application, $laravelRequest, $laravelResponse));
-        } catch (ConnectionException $e) {
-            $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
-        } catch (Throwable $e) {
             try {
-                $request->respond($e->getMessage(), [], 500);
-            } catch (Throwable) {
+                $kernel->terminate($laravelRequest, $laravelResponse);
+                $this->dispatchEvent($application, new RequestTerminated($this->application, $application, $laravelRequest, $laravelResponse));
+            } catch (Throwable $e) {
+                $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
             }
 
+            return $response;
+        } catch (ConnectionException $e) {
             $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
+            return null;
+        } catch (Throwable $e) {
+            $this->dispatchEvent($application, new WorkerErrorOccurred($this->application, $application, $e));
+            return new Response(500, ['Content-Type' => 'text/plain'], $e->getMessage());
         } finally {
             foreach (Factory::defaultServicesToWarm() as $service) {
                 try {
@@ -203,6 +178,21 @@ class HttpWorker extends Worker
             }
             unset($application);
         }
+    }
+
+    protected function toLaravelRequest(ServerRequestInterface $request): \Illuminate\Http\Request
+    {
+        $parsedBody = $request->getParsedBody();
+
+        return new \Illuminate\Http\Request(
+            $request->getQueryParams(),
+            is_array($parsedBody) ? $parsedBody : (is_object($parsedBody) ? (array)$parsedBody : []),
+            [],
+            $request->getCookieParams(),
+            $this->parseFiles($request->getUploadedFiles()),
+            $request->getServerParams(),
+            (string)$request->getBody(),
+        );
     }
 
     /*** @return array<string, array<UploadedFile>> */

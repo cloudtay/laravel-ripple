@@ -12,18 +12,30 @@
 
 namespace Laravel\Ripple;
 
+use Laravel\Ripple\Built\Response\IteratorBodyStream;
+use Laravel\Ripple\Built\Response\IteratorResponse;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\UploadedFileInterface;
+use Ripple\Net\Http\BodyStream;
+use Ripple\Net\Http\Response as RippleResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 
 use function array_is_list;
 use function file_exists;
+use function fopen;
 use function is_array;
+use function is_resource;
 use function is_string;
 use function realpath;
 use function rtrim;
 use function str_starts_with;
 use function strlen;
 use function substr;
+use function sys_get_temp_dir;
+use function tempnam;
 
 use const DIRECTORY_SEPARATOR;
 use const UPLOAD_ERR_NO_FILE;
@@ -66,8 +78,56 @@ class Util
         return $parsed;
     }
 
+    public static function toRippleResponse(SymfonyResponse $response, ?string $outputBuffer = null): RippleResponse
+    {
+        $rippleResponse = new RippleResponse($response->getStatusCode());
+
+        foreach ($response->headers->allPreserveCaseWithoutCookies() as $key => $value) {
+            $rippleResponse = $rippleResponse->withHeader($key, $value);
+        }
+
+        foreach ($response->headers->getCookies() as $cookie) {
+            $rippleResponse = $rippleResponse->withAddedHeader('Set-Cookie', $cookie->__toString());
+        }
+
+        if ($response instanceof BinaryFileResponse) {
+            $resource = fopen($response->getFile()->getPathname(), 'r');
+            if (is_resource($resource)) {
+                $rippleResponse = $rippleResponse->withBody(new BodyStream($resource));
+            } else {
+                $rippleResponse = $rippleResponse->withStatus(500);
+            }
+
+            return $rippleResponse;
+        }
+
+        if ($response instanceof IteratorResponse) {
+            return $rippleResponse->withBody(new IteratorBodyStream($response->getIterator()));
+        }
+
+        return $rippleResponse->withBody(BodyStream::fromString((string)$outputBuffer . (string)$response->getContent()));
+    }
+
+    public static function fromPsrResponse(ResponseInterface $response): RippleResponse
+    {
+        if ($response instanceof RippleResponse) {
+            return $response;
+        }
+
+        return new RippleResponse(
+            $response->getStatusCode(),
+            $response->getHeaders(),
+            $response->getBody(),
+            $response->getReasonPhrase()
+        );
+    }
+
     private static function normalizeRippleFileValue(mixed $value): mixed
     {
+        if ($value instanceof UploadedFileInterface) {
+            return self::toSymfonyUploadedFile($value);
+        }
+
         if (!is_array($value)) {
             return $value;
         }
@@ -103,5 +163,49 @@ class Util
         }
 
         return $value;
+    }
+
+    private static function toSymfonyUploadedFile(UploadedFileInterface $file): UploadedFile
+    {
+        $path = '';
+        $error = $file->getError();
+
+        if ($error === UPLOAD_ERR_OK) {
+            $path = self::persistUploadedFileStream($file);
+        }
+
+        return new UploadedFile(
+            $path,
+            $file->getClientFilename() ?? '',
+            $file->getClientMediaType() ?? 'application/octet-stream',
+            $error,
+            true
+        );
+    }
+
+    private static function persistUploadedFileStream(UploadedFileInterface $file): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'ripple-upload-');
+        if ($path === false) {
+            return '';
+        }
+
+        $resource = fopen($path, 'w');
+        if (!is_resource($resource)) {
+            return '';
+        }
+
+        $stream = $file->getStream();
+        if ($stream->isSeekable()) {
+            $stream->rewind();
+        }
+
+        while (!$stream->eof()) {
+            fwrite($resource, $stream->read(8192));
+        }
+
+        fclose($resource);
+
+        return $path;
     }
 }

@@ -24,8 +24,8 @@ use Laravel\Ripple\Built\Factory;
 use Laravel\Ripple\HttpWorker;
 use Laravel\Ripple\Octane\RippleClient;
 use Laravel\Ripple\Util;
+use Psr\Http\Message\ServerRequestInterface;
 use Ripple\Event;
-use Ripple\Net\Http\Request;
 use Ripple\Runtime\Support\Stdin;
 use Ripple\Worker\Manager;
 
@@ -149,10 +149,13 @@ if (RIP_OCTANE) {
         exit(0);
     }
     $manager->add($httpWorker = new HttpWorker($application, RIP_HTTP_LISTEN, RIP_HTTP_WORKERS, RIP_WATCH));
-    RIP_OCTANE && $httpWorker->customHandler(static function (Request $rippleHttpRequest) use ($octaneClient, $octaneWorker) {
+    RIP_OCTANE && $httpWorker->customHandler(static function (ServerRequestInterface $rippleHttpRequest) use ($octaneClient, $octaneWorker) {
+        $context = new RequestContext(['rippleHttpRequest' => $rippleHttpRequest]);
         $octaneWorker->handle(
-            ...$octaneClient->marshalRequest(new RequestContext(['rippleHttpRequest' => $rippleHttpRequest]))
+            ...$octaneClient->marshalRequest($context)
         );
+
+        return $octaneClient->pullResponse($context);
     });
 } else {
     $application = Factory::createApplication();

@@ -19,7 +19,7 @@
     "ext-posix": "*",
     "ext-sockets": "*",
     "ext-pdo": "*",
-    "cloudtay/ripple": "^2.0",
+    "cloudtay/ripple": "^3.0",
     "laravel/framework": "^11.0|^12.0"
   },
   "require-dev": {
