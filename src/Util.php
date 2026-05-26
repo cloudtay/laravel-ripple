@@ -36,6 +36,8 @@ use function strlen;
 use function substr;
 use function sys_get_temp_dir;
 use function tempnam;
+use function fclose;
+use function fwrite;
 
 use const DIRECTORY_SEPARATOR;
 use const UPLOAD_ERR_NO_FILE;

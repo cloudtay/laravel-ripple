@@ -145,17 +145,17 @@ final class FakePsrUploadedFile implements UploadedFileInterface
 
     public function moveTo(string $targetPath): void
     {
-        file_put_contents($targetPath, $this->content);
+        \file_put_contents($targetPath, $this->content);
     }
 
     public function getSize(): ?int
     {
-        return strlen($this->content);
+        return \strlen($this->content);
     }
 
     public function getError(): int
     {
-        return UPLOAD_ERR_OK;
+        return \UPLOAD_ERR_OK;
     }
 
     public function getClientFilename(): ?string

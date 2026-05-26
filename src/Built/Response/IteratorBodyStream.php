@@ -10,6 +10,8 @@ use Throwable;
 use function strlen;
 use function substr;
 
+use const SEEK_SET;
+
 class IteratorBodyStream implements StreamInterface
 {
     private string $buffer = '';
